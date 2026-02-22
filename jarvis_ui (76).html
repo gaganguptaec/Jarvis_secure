@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS Smart Home</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+/* ── VARIABLES ── */
+:root {
+  --c:#00e5ff; --y:#ffcc00; --g:#00ff88; --r:#ff4444; --bg:#020c14;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: radial-gradient(ellipse at 30% 20%, #001824, #000810 60%, #000);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100vh; font-family:'Orbitron',monospace; padding:20px; gap:14px;
+}
+
+.page-label {
+  font-family:'Share Tech Mono',monospace; font-size:.55rem;
+  letter-spacing:6px; color:#00e5ff18;
+}
+
+/* ── LCD FRAME ── */
+.lcd-frame {
+  background:#060d14; border:2px solid #00e5ff18; border-radius:14px; padding:8px;
+  box-shadow:0 0 0 1px #00e5ff06, 0 0 50px #00e5ff12, 0 0 100px #00000088, inset 0 0 30px #000;
+}
+.screen {
+  width:480px; height:320px; background:var(--bg);
+  border-radius:6px; overflow:hidden; position:relative;
+}
+@media(max-width:520px){
+  .lcd-frame{ transform:scale(calc((100vw - 20px)/496px)); margin-bottom:calc(-320px + 320px*((100vw - 20px)/496px)); }
+}
+
+/* ── BACKGROUND ── */
+.bg-grid {
+  position:absolute; inset:0; z-index:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,.028) 1px,transparent 1px);
+  background-size:30px 30px;
+  animation:gridMove 14s linear infinite;
+}
+@keyframes gridMove{from{background-position:0 0}to{background-position:30px 30px}}
+
+.radar-ring{
+  position:absolute; z-index:0; border-radius:50%; border:1px solid #00e5ff05;
+  animation:radarPulse 5s ease-out infinite;
+}
+.radar-ring:nth-child(2){width:300px;height:300px;top:-80px;left:-60px}
+.radar-ring:nth-child(3){width:440px;height:440px;top:-140px;left:-120px;animation-delay:2.5s}
+@keyframes radarPulse{0%{opacity:0;transform:scale(.85)}50%{opacity:1}100%{opacity:0;transform:scale(1.1)}}
+
+/* ── CORNERS ── */
+.corner{position:absolute;width:20px;height:20px;z-index:5}
+.c-tl{top:4px;left:4px;border-top:2px solid var(--c);border-left:2px solid var(--c)}
+.c-tr{top:4px;right:4px;border-top:2px solid var(--c);border-right:2px solid var(--c)}
+.c-bl{bottom:4px;left:4px;border-bottom:2px solid var(--c);border-left:2px solid var(--c)}
+.c-br{bottom:4px;right:4px;border-bottom:2px solid var(--c);border-right:2px solid var(--c)}
+
+/* ── HEADER ── */
+.header{
+  position:absolute;top:0;left:0;right:0;height:44px;z-index:4;
+  background:linear-gradient(180deg,#00e5ff0a 0%,transparent 100%);
+  border-bottom:1px solid #00e5ff1e;
+  display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+}
+.h-left{display:flex;align-items:center;gap:10px}
+.logo-title{
+  font-size:.88rem;font-weight:900;color:var(--c);letter-spacing:4px;display:block;
+  text-shadow:0 0 14px var(--c);
+  animation:logoGlitch 9s infinite;
+}
+@keyframes logoGlitch{
+  0%,93%,100%{text-shadow:0 0 14px var(--c);transform:none}
+  94%{text-shadow:3px 0 #f44,-3px 0 #0ef;transform:skewX(-1deg)}
+  96%{text-shadow:-2px 0 #0f8,2px 0 #f44;transform:skewX(.5deg)}
+  98%{text-shadow:0 0 14px var(--c);transform:none}
+}
+.logo-sub{font-size:.34rem;color:#00e5ff44;letter-spacing:2px;font-family:'Share Tech Mono',monospace;display:block}
+.dvdr{width:1px;height:24px;background:#00e5ff2a}
+.sys{font-size:.4rem;color:#00e5ff77;letter-spacing:1px;font-family:'Share Tech Mono',monospace;line-height:1.9;cursor:pointer}
+.sys:hover{color:var(--c)}
+.h-right{display:flex;align-items:center;gap:8px}
+.wifi{display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:.4rem;color:#00e5ff77;letter-spacing:1px}
+.led{width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 6px var(--g);animation:blink 2.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.clk{font-size:.68rem;color:#00e5ffcc;letter-spacing:2px;font-family:'Share Tech Mono',monospace;text-shadow:0 0 8px #00e5ff44;min-width:58px;text-align:right}
+.hdr-btn{
+  width:22px;height:22px;border-radius:4px;border:1px solid #00e5ff2a;
+  background:rgba(0,229,255,.06);color:#00e5ff88;font-size:.85rem;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;user-select:none;
+}
+.hdr-btn:hover{border-color:var(--c);color:var(--c);background:rgba(0,229,255,.15);box-shadow:0 0 10px #00e5ff33}
+
+/* ── MAIN CONTENT ── */
+.main-content{
+  position:absolute;top:44px;bottom:52px;left:0;right:0;
+  display:flex;padding:10px;gap:10px;z-index:3;
+  overflow-x:auto;overflow-y:hidden;
+}
+.main-content::-webkit-scrollbar{height:2px}
+.main-content::-webkit-scrollbar-thumb{background:#00e5ff22;border-radius:1px}
+
+/* ── PANELS ── */
+.d-panel{position:relative;flex-shrink:0}
+
+.fan-panel{
+  background:rgba(0,180,220,.03);border:1px solid #00e5ff18;border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:10px 8px;gap:10px;overflow:hidden;
+  transition:border-color .3s,background .3s,box-shadow .3s;
+}
+.fan-panel.active{border-color:#00e5ff44;background:rgba(0,180,220,.06);box-shadow:inset 0 0 20px #00e5ff08}
+
+.light-panel{
+  background:rgba(255,200,0,.02);border:1px solid #ffcc0018;border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:10px 8px;gap:10px;overflow:hidden;
+  transition:border-color .3s,background .3s,box-shadow .3s;
+}
+.light-panel.active{border-color:#ffcc0044;background:rgba(255,200,0,.05);box-shadow:inset 0 0 20px #ffcc0008}
+
+.plbl{font-size:.4rem;letter-spacing:2px;color:#00e5ff44;font-family:'Share Tech Mono',monospace;text-align:center;padding-top:2px}
+
+/* FAN BTN */
+.fan-btn-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:72px;height:72px;flex-shrink:0}
+.fan-onoff{
+  width:72px;height:72px;border-radius:50%;border:2px solid #00e5ff2a;
+  background:rgba(0,229,255,.04);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .25s;user-select:none;position:relative;
+}
+.fan-onoff::before{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid #00e5ff10}
+.fan-onoff:hover{border-color:#00e5ff55;background:rgba(0,229,255,.09)}
+.fan-onoff:active{transform:scale(.92)}
+.fan-onoff.on{border-color:var(--c);background:rgba(0,229,255,.12);box-shadow:0 0 22px #00e5ff33,inset 0 0 14px #00e5ff0e}
+.fan-onoff.on::before{border-color:#00e5ff33}
+@keyframes fanSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.fan-gring{width:82px;height:82px;border-radius:50%;border:1px solid transparent;position:absolute;pointer-events:none;transition:border-color .4s}
+
+.g-num{font-size:1.3rem;font-weight:900;display:block;transition:color .3s,text-shadow .3s;line-height:1;text-align:center;font-family:'Orbitron',monospace}
+.g-unit{font-size:.28rem;color:#00e5ff44;letter-spacing:2px;font-family:'Share Tech Mono',monospace;display:block;text-align:center}
+
+.speed-row{display:flex;align-items:center;gap:6px;justify-content:center;width:100%}
+.sb{
+  width:30px;height:30px;border-radius:50%;border:2px solid #00e5ff44;
+  background:rgba(0,229,255,.05);color:var(--c);font-size:1.1rem;font-weight:900;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron',monospace;transition:all .15s;user-select:none;
+}
+.sb:hover{border-color:var(--c);background:rgba(0,229,255,.14);box-shadow:0 0 12px #00e5ff33}
+.sb:active{transform:scale(.88)}
+.sb.off{opacity:.15;pointer-events:none}
+
+.dots{display:flex;gap:4px;align-items:center}
+.dot{width:7px;height:7px;border-radius:2px;background:#00e5ff0a;border:1px solid #00e5ff18;transition:all .3s;flex-shrink:0}
+.dot.lit{background:var(--c);box-shadow:0 0 6px var(--c)}
+
+.slider-wrap{width:100%;height:30px;position:relative;display:flex;align-items:center}
+.slider-labels{position:absolute;top:-14px;left:2px;right:2px;display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:.3rem;color:#00e5ff44}
+.spd-slider{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:4px;border-radius:2px;outline:none;cursor:pointer;
+  background:linear-gradient(90deg,#00e5ff22,#00e5ff0a);border:1px solid #00e5ff22;
+}
+.spd-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--bg);border:2px solid var(--c);
+  box-shadow:0 0 8px var(--c),0 0 18px #00e5ff33;cursor:pointer;
+}
+.spd-slider.off-state::-webkit-slider-thumb{border-color:var(--r);box-shadow:0 0 8px var(--r)}
+
+/* LIGHT BTN */
+.lb-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:72px;height:72px;flex-shrink:0}
+.lb{
+  width:72px;height:72px;border-radius:50%;border:2px solid #ffcc002a;
+  background:rgba(255,200,0,.04);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:all .25s;user-select:none;position:relative;
+}
+.lb::before{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid #ffcc0010}
+.lb:hover{border-color:#ffcc0050;background:rgba(255,200,0,.09)}
+.lb:active{transform:scale(.92)}
+.lb.active{border-color:var(--y);background:rgba(255,200,0,.12);box-shadow:0 0 22px #ffcc0033,inset 0 0 14px #ffcc000e}
+.lb.active::before{border-color:#ffcc0033}
+.gring{width:82px;height:82px;border-radius:50%;border:1px solid transparent;position:absolute;pointer-events:none;transition:border-color .4s}
+.bulb{font-size:1.8rem;line-height:1;filter:grayscale(1) brightness(.3);transition:filter .3s}
+.lb.active .bulb{filter:drop-shadow(0 0 8px #ffcc00);animation:bulbGlow 1.8s ease-in-out infinite}
+@keyframes bulbGlow{
+  0%,100%{filter:drop-shadow(0 0 5px #ffcc00) drop-shadow(0 0 10px #ffcc0088)}
+  50%{filter:drop-shadow(0 0 14px #ffcc00) drop-shadow(0 0 28px #ffcc00aa) brightness(1.3)}
+}
+
+/* ── STATUS BAR ── */
+.sbar{
+  position:absolute;bottom:0;left:0;right:0;height:52px;z-index:4;
+  background:linear-gradient(0deg,#00e5ff06 0%,transparent 100%);
+  border-top:1px solid #00e5ff18;display:flex;align-items:center;padding:0 8px;
+}
+.sblk{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 4px;border-right:1px solid #00e5ff0a}
+.sblk:last-child{border-right:none}
+.slbl{font-size:.38rem;color:#00e5ff44;letter-spacing:1px;font-family:'Share Tech Mono',monospace;text-align:center;white-space:nowrap}
+.sval{font-size:.82rem;font-weight:700;letter-spacing:1px;font-family:'Orbitron',monospace;transition:color .3s,text-shadow .3s;text-align:center;white-space:nowrap}
+
+/* ── EDIT BAR (replaces status bar in edit mode) ── */
+#editBar{
+  position:absolute;bottom:0;left:0;right:0;height:52px;z-index:5;
+  display:none;align-items:center;justify-content:center;gap:16px;
+  background:linear-gradient(0deg,rgba(255,30,30,.1) 0%,transparent 100%);
+  border-top:1px solid rgba(255,68,68,.2);
+}
+#editBar.show{display:flex}
+
+/* Edit hint text */
+#editHint{
+  font-family:'Share Tech Mono',monospace;font-size:.32rem;
+  letter-spacing:2px;color:rgba(255,68,68,.45);
+  pointer-events:none;user-select:none;
+  transition:color .2s;
+}
+#editHint.hot{color:rgba(255,68,68,.9)}
+
+/* Dustbin */
+#binBtn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  width:52px;height:42px;border-radius:8px;cursor:pointer;
+  border:1.5px solid rgba(255,68,68,.3);background:rgba(255,68,68,.08);
+  transition:all .15s;user-select:none;flex-shrink:0;
+}
+#binBtn.hot{
+  background:rgba(255,68,68,.32);border-color:rgba(255,68,68,.9);
+  box-shadow:0 0 22px rgba(255,68,68,.5),inset 0 0 12px rgba(255,68,68,.15);
+  transform:scale(1.1);
+}
+#binIcon{font-size:1rem;line-height:1;filter:grayscale(.6) brightness(.7);transition:filter .15s,transform .15s}
+#binBtn.hot #binIcon{filter:none;transform:scale(1.08) translateY(-1px)}
+#binLbl{font-family:'Share Tech Mono',monospace;font-size:.28rem;letter-spacing:2px;color:rgba(255,68,68,.4);transition:color .15s}
+#binBtn.hot #binLbl{color:#ff4444}
+
+/* ── DROPDOWN ── */
+.dditem{padding:5px 10px;font-size:.38rem;color:#00e5ff77;letter-spacing:1px;cursor:pointer;border-radius:4px;white-space:nowrap;transition:all .15s}
+.dditem:hover{background:rgba(0,229,255,.1);color:var(--c)}
+
+.col-opt{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;opacity:.65}
+.col-opt.active,.col-opt:hover{opacity:1;border-color:#fff;box-shadow:0 0 6px #fff8}
+.upd-col-opt{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;opacity:.65;flex-shrink:0}
+.upd-col-opt.active{border-color:#fff;opacity:1;box-shadow:0 0 6px #fff8}
+.upd-col-opt:hover{opacity:.9;transform:scale(1.1)}
+
+/* ── GHOST (fixed, floating) ── */
+#ghost{
+  position:fixed;pointer-events:none;z-index:9999;
+  border-radius:8px;display:none;overflow:hidden;
+  box-shadow:0 14px 44px rgba(0,0,0,.88),0 0 0 1px rgba(0,229,255,.35);
+  transform:scale(1.06) rotate(2.5deg);
+  will-change:left,top;
+  transition:box-shadow .12s,transform .12s;
+}
+#ghost.on-bin{
+  box-shadow:0 14px 44px rgba(255,68,68,.55),0 0 0 2px rgba(255,68,68,.9);
+  transform:scale(1.06) rotate(2.5deg);
+}
+
+/* ── DRAG PLACEHOLDER ── */
+.drag-ph{
+  flex-shrink:0;border-radius:8px;
+  border:1.5px dashed rgba(0,229,255,.22);
+  background:rgba(0,229,255,.03);
+  pointer-events:none;
+  transition:width .14s ease;
+}
+
+/* ── EDIT MODE ANIMATIONS ── */
+@keyframes jiggle{
+  0%  {transform:rotate(-2deg) scale(1.015)}
+  50% {transform:rotate( 2deg) scale(1.015)}
+  100%{transform:rotate(-2deg) scale(1.015)}
+}
+.panel-wiggle{
+  animation:jiggle .28s ease-in-out infinite !important;
+  cursor:grab;
+}
+
+/* MIUI uninstall scatter */
+@keyframes scatter{
+  0%  {transform:scale(1)    rotate(0deg)  translate(0,0);     opacity:1}
+  25% {transform:scale(1.12) rotate(-4deg) translate(-2px,-5px);opacity:.9}
+  100%{transform:scale(.04)  rotate(22deg) translate(8px,50px); opacity:0}
+}
+.panel-scatter{
+  animation:scatter .32s cubic-bezier(.5,0,.85,1) forwards !important;
+  pointer-events:none !important;
+}
+
+/* ── MODALS ── */
+#addModal,#removeModal,#updateModal,#renameModal,#deleteModal{display:none}
+select option{background:#060f18;color:#00e5ffcc}
+input[type=text]{-webkit-appearance:none}
+
+/* SCANLINES */
+.scanlines{position:absolute;inset:0;z-index:10;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.05) 3px,rgba(0,0,0,.05) 4px)}
+
+/* INSTRUCTIONS */
+.instructions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.chip{background:#0a0f18;border:1px solid #00e5ff16;border-radius:20px;padding:5px 14px;font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#00e5ff44;letter-spacing:1px}
+.chip b{color:#00e5ffaa}
+
+@keyframes glowPulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.1);opacity:1}}
+@keyframes fadeIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+
+/* ══ FINGERPRINT LOCK SCREEN ══ */
+#lockScreen {
+  position:fixed; inset:0; z-index:9999;
+  background: radial-gradient(ellipse at 40% 30%, #001824, #000810 60%, #000);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0; font-family:'Orbitron',monospace;
+  transition: opacity .5s ease, transform .5s ease;
+}
+#lockScreen.unlock-anim {
+  opacity:0; transform:scale(1.08);
+  pointer-events:none;
+}
+
+/* Lock BG grid */
+#lockScreen::before {
+  content:''; position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
+  background-size:32px 32px;
+  animation:gridMove 14s linear infinite;
+}
+
+/* Corners on lock screen */
+.lk-corner { position:absolute; width:28px; height:28px; }
+.lk-tl{top:16px;left:16px;border-top:2px solid #00e5ff44;border-left:2px solid #00e5ff44}
+.lk-tr{top:16px;right:16px;border-top:2px solid #00e5ff44;border-right:2px solid #00e5ff44}
+.lk-bl{bottom:16px;left:16px;border-bottom:2px solid #00e5ff44;border-left:2px solid #00e5ff44}
+.lk-br{bottom:16px;right:16px;border-bottom:2px solid #00e5ff44;border-right:2px solid #00e5ff44}
+
+.lk-title {
+  font-size:1.6rem; font-weight:900; color:#00e5ff;
+  letter-spacing:6px; text-shadow:0 0 20px #00e5ffaa;
+  animation:logoGlitch 8s infinite;
+  margin-bottom:4px; position:relative; z-index:1;
+}
+.lk-sub {
+  font-family:'Share Tech Mono',monospace; font-size:.45rem;
+  color:#00e5ff44; letter-spacing:4px; margin-bottom:48px;
+  position:relative; z-index:1;
+}
+
+/* Fingerprint ring */
+.fp-ring-wrap {
+  position:relative; width:140px; height:140px;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:36px; z-index:1;
+}
+.fp-ring {
+  position:absolute; inset:0; border-radius:50%;
+  border:2px solid #00e5ff22;
+  transition:border-color .3s, box-shadow .3s;
+}
+.fp-ring.r2{inset:8px;border-color:#00e5ff16}
+.fp-ring.r3{inset:16px;border-color:#00e5ff10}
+.fp-ring-wrap.scanning .fp-ring   {border-color:#00e5ff88;box-shadow:0 0 20px #00e5ff44,0 0 40px #00e5ff22;animation:ringPulse 1s ease-in-out infinite}
+.fp-ring-wrap.scanning .fp-ring.r2{border-color:#00e5ff55;animation:ringPulse 1s ease-in-out infinite .15s}
+.fp-ring-wrap.scanning .fp-ring.r3{border-color:#00e5ff33;animation:ringPulse 1s ease-in-out infinite .3s}
+.fp-ring-wrap.success .fp-ring   {border-color:#00ff88cc;box-shadow:0 0 30px #00ff8866}
+.fp-ring-wrap.success .fp-ring.r2{border-color:#00ff8899}
+.fp-ring-wrap.success .fp-ring.r3{border-color:#00ff8866}
+.fp-ring-wrap.error .fp-ring    {border-color:#ff4444cc;box-shadow:0 0 30px #ff444466}
+.fp-ring-wrap.error .fp-ring.r2 {border-color:#ff444499}
+.fp-ring-wrap.error .fp-ring.r3 {border-color:#ff444466}
+@keyframes ringPulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.04);opacity:1}}
+
+/* Fingerprint SVG icon */
+.fp-icon {
+  position:relative; z-index:2;
+  filter: drop-shadow(0 0 8px #00e5ff44);
+  transition: filter .3s;
+}
+.fp-ring-wrap.scanning .fp-icon{filter:drop-shadow(0 0 14px #00e5ffcc)}
+.fp-ring-wrap.success  .fp-icon{filter:drop-shadow(0 0 14px #00ff88cc)}
+.fp-ring-wrap.error    .fp-icon{filter:drop-shadow(0 0 14px #ff4444cc)}
+
+/* Scan line animation over FP icon */
+.fp-scan-line {
+  position:absolute; left:32px; right:32px; height:2px;
+  background:linear-gradient(90deg,transparent,#00e5ffaa,transparent);
+  z-index:3; display:none; border-radius:1px;
+  box-shadow:0 0 8px #00e5ff88;
+}
+.fp-ring-wrap.scanning .fp-scan-line{
+  display:block;
+  animation:scanLine 1.2s ease-in-out infinite;
+}
+@keyframes scanLine{
+  0%  {top:20px;opacity:0}
+  10% {opacity:1}
+  90% {opacity:1}
+  100%{top:118px;opacity:0}
+}
+
+/* Status text */
+.lk-status {
+  font-family:'Share Tech Mono',monospace;
+  font-size:.5rem; letter-spacing:3px;
+  color:#00e5ff66; min-height:20px;
+  text-align:center; margin-bottom:20px;
+  position:relative; z-index:1;
+  transition:color .2s;
+}
+.lk-status.ok{color:#00ff88}
+.lk-status.err{color:#ff4444}
+
+/* Main fingerprint button */
+.fp-btn {
+  position:relative; z-index:1;
+  padding:10px 32px; border-radius:8px;
+  border:1.5px solid #00e5ff44;
+  background:rgba(0,229,255,.08);
+  color:#00e5ffcc; font-family:'Orbitron',monospace;
+  font-size:.52rem; letter-spacing:3px;
+  cursor:pointer; transition:all .2s;
+  user-select:none; margin-bottom:12px;
+}
+.fp-btn:hover{border-color:var(--c);background:rgba(0,229,255,.16);box-shadow:0 0 16px #00e5ff33}
+.fp-btn:active{transform:scale(.95)}
+.fp-btn.reg-btn{border-color:#ffcc0044;color:#ffcc00cc;background:rgba(255,200,0,.08)}
+.fp-btn.reg-btn:hover{border-color:var(--y);background:rgba(255,200,0,.16);box-shadow:0 0 16px #ffcc0033}
+.fp-btn:disabled{opacity:.3;pointer-events:none}
+
+/* Reset link */
+.lk-reset {
+  position:relative; z-index:1;
+  font-family:'Share Tech Mono',monospace; font-size:.35rem;
+  color:#00e5ff22; letter-spacing:2px; cursor:pointer;
+  text-decoration:underline; margin-top:6px;
+}
+.lk-reset:hover{color:#00e5ff55}
+
+/* Secure badge */
+.lk-badge {
+  position:absolute; bottom:20px;
+  display:flex; align-items:center; gap:6px;
+  font-family:'Share Tech Mono',monospace; font-size:.32rem;
+  color:#00e5ff22; letter-spacing:2px; z-index:1;
+}
+.lk-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--g);box-shadow:0 0 6px var(--g);animation:blink 2.5s ease-in-out infinite}
+</style>
+</head>
+<body>
+
+<!-- ══════════ FINGERPRINT LOCK SCREEN ══════════ -->
+<div id="lockScreen">
+  <div class="lk-corner lk-tl"></div>
+  <div class="lk-corner lk-tr"></div>
+  <div class="lk-corner lk-bl"></div>
+  <div class="lk-corner lk-br"></div>
+
+  <div class="lk-title">JARVIS</div>
+  <div class="lk-sub">BIOMETRIC SECURITY v2.0</div>
+
+  <div class="fp-ring-wrap" id="fpRingWrap">
+    <div class="fp-ring"></div>
+    <div class="fp-ring r2"></div>
+    <div class="fp-ring r3"></div>
+    <div class="fp-scan-line"></div>
+    <svg class="fp-icon" width="70" height="70" viewBox="0 0 64 64" fill="none">
+      <path d="M32 6C18.7 6 8 16.7 8 30c0 5.5 1.9 10.6 5 14.6" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>
+      <path d="M56 30c0-13.3-10.7-24-24-24" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>
+      <path d="M32 14c-8.8 0-16 7.2-16 16 0 4 1.5 7.7 3.9 10.5" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>
+      <path d="M48 30c0-8.8-7.2-16-16-16" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>
+      <path d="M32 22c-4.4 0-8 3.6-8 8 0 2.2.9 4.2 2.3 5.7" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>
+      <path d="M40 30c0-4.4-3.6-8-8-8" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>
+      <circle cx="32" cy="30" r="3" fill="#00e5ff" opacity=".9"/>
+      <path d="M16 44c3 4 7.4 7.1 12.5 8.4" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".5"/>
+      <path d="M35 52.8C44.9 51 52 42.4 52 32c0-2-.3-4-.8-5.8" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" opacity=".5"/>
+    </svg>
+  </div>
+
+  <div class="lk-status" id="fpStatus">INITIALIZING...</div>
+
+  <button class="fp-btn" id="fpAuthBtn" onclick="doAuthenticate()" style="display:none">
+    ◈ TOUCH SENSOR TO UNLOCK ◈
+  </button>
+  <button class="fp-btn reg-btn" id="fpRegBtn" onclick="doRegister()" style="display:none">
+    ◈ REGISTER FINGERPRINT ◈
+  </button>
+
+  <div class="lk-reset" id="fpReset" onclick="resetAuth()" style="display:none">
+    RESET &amp; RE-REGISTER
+  </div>
+
+  <div class="lk-badge">
+    <div class="lk-badge-dot"></div>
+    WebAuthn · Biometric · Secure Context
+  </div>
+</div>
+
+<div class="page-label">▸ JARVIS SMART HOME — LCD PREVIEW ◂</div>
+
+<div class="lcd-frame">
+<div class="screen" id="screen">
+  <div class="bg-grid"></div>
+  <div class="radar-ring"></div>
+  <div class="radar-ring"></div>
+  <div class="corner c-tl"></div><div class="corner c-tr"></div>
+  <div class="corner c-bl"></div><div class="corner c-br"></div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="h-left">
+      <div>
+        <span class="logo-title">JARVIS</span>
+        <span class="logo-sub">SMART HOME SYSTEM v2.0</span>
+      </div>
+      <div class="dvdr"></div>
+      <div class="sys" id="roomLbl" onclick="openRenameModal()">ROOM 1<br><span style="font-size:.3rem;color:#00e5ff2a">RENAME</span></div>
+    </div>
+    <div class="h-right">
+      <div class="wifi"><div class="led"></div>WIFI</div>
+      <div class="dvdr"></div>
+      <div style="position:relative">
+        <div class="hdr-btn" id="settingsBtn" onclick="toggleSettings()">⚙</div>
+        <div id="settingsMenu" style="display:none;position:absolute;top:26px;right:0;background:#060f18;border:1px solid #00e5ff28;border-radius:6px;padding:4px;min-width:122px;z-index:30;font-family:'Share Tech Mono',monospace">
+          <div class="dditem" onclick="openAddModal();toggleSettings()">＋ ADD DEVICE</div>
+          <div class="dditem" onclick="openRemoveModal();toggleSettings()">－ REMOVE DEVICE</div>
+          <div class="dditem" onclick="openUpdateModal();toggleSettings()">✎ UPDATE DEVICE</div>
+        </div>
+      </div>
+      <div class="dvdr"></div>
+      <div class="clk" id="clk">--:--:--</div>
+    </div>
+  </div>
+
+  <!-- PANELS -->
+  <div class="main-content" id="mainContent">
+
+    <!-- STATIC FAN -->
+    <div class="fan-panel d-panel" id="fanPanel">
+      <div class="plbl">◈ FAN CONTROL ◈</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
+        <div class="fan-btn-wrap" style="margin-top:4px">
+          <div class="fan-onoff" id="fanOnOff" onclick="togFan()">
+            <svg id="fanSvg" width="36" height="36" viewBox="0 0 100 100" style="filter:grayscale(1) brightness(.3);transition:filter .3s">
+              <path d="M50 50 Q60 20 50 5 Q35 20 50 50" fill="#00e5ff" opacity=".9"/>
+              <path d="M50 50 Q80 60 95 50 Q80 35 50 50" fill="#00e5ff" opacity=".9"/>
+              <path d="M50 50 Q40 80 50 95 Q65 80 50 50" fill="#00e5ff" opacity=".9"/>
+              <path d="M50 50 Q20 40 5 50 Q20 65 50 50" fill="#00e5ff" opacity=".9"/>
+              <circle cx="50" cy="50" r="8" fill="#00e5ff"/>
+              <circle cx="50" cy="50" r="4" fill="#020c14"/>
+            </svg>
+          </div>
+          <div class="fan-gring" id="fanGring"></div>
+        </div>
+        <div style="text-align:center;margin-top:12px">
+          <span class="g-num" id="gNum" style="color:#ff4444;text-shadow:0 0 15px #ff444488">OFF</span>
+          <span class="g-unit">SPEED</span>
+        </div>
+        <div class="slider-wrap" id="viewSlider" style="margin-top:14px">
+          <div class="slider-labels"><span>OFF</span><span>1</span><span>2</span><span>3</span><span>4</span></div>
+          <input type="range" min="0" max="4" value="0" id="spdSlider" class="spd-slider" oninput="onSlider(this.value)">
+        </div>
+        <div class="speed-row" id="viewBtns" style="display:none;margin-top:14px">
+          <button class="sb off" id="bDown" onclick="chSpd(-1)">−</button>
+          <div class="dots"><div class="dot" id="d0"></div><div class="dot" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div></div>
+          <button class="sb off" id="bUp" onclick="chSpd(1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATIC LIGHT -->
+    <div class="light-panel d-panel" id="lPanel">
+      <div class="plbl" style="color:#ffcc0044">◈ LIGHT CONTROL ◈</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
+        <div class="lb-wrap" style="margin-top:4px">
+          <div class="lb" id="lBtn" onclick="togLight()">
+            <div class="bulb">💡</div>
+          </div>
+          <div class="gring" id="gring"></div>
+        </div>
+        <div style="text-align:center;margin-top:12px">
+          <span id="lightNum" style="color:#ff4444;text-shadow:0 0 15px #ff444488;font-size:1.3rem;font-weight:900;display:block;line-height:1;font-family:'Orbitron',monospace">OFF</span>
+          <span style="display:block;font-size:.28rem;color:#ffcc0044;letter-spacing:2px;font-family:'Share Tech Mono',monospace;margin-top:3px">STATUS</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /mainContent -->
+
+  <!-- STATUS BAR -->
+  <div class="sbar" id="sbar"></div>
+
+  <!-- EDIT BAR (shows during edit mode) -->
+  <div id="editBar">
+    <span id="editHint">DRAG TO REMOVE →</span>
+    <div id="binBtn" onclick="noop()">
+      <div id="binIcon">🗑️</div>
+      <div id="binLbl">REMOVE</div>
+    </div>
+  </div>
+
+  <!-- GHOST -->
+  <div id="ghost"></div>
+
+  <!-- ── MODALS ── -->
+
+  <!-- ADD -->
+  <div id="addModal" style="display:none;position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.88);align-items:center;justify-content:center">
+    <div style="background:#060f18;border:1px solid #00e5ff28;border-radius:10px;padding:16px;width:230px;font-family:'Share Tech Mono',monospace">
+      <div style="font-size:.55rem;color:var(--c);letter-spacing:3px;margin-bottom:14px;text-align:center">◈ ADD DEVICE ◈</div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:.35rem;color:#00e5ff55;letter-spacing:1px;margin-bottom:4px">DEVICE NAME</div>
+        <input id="inp-name" type="text" placeholder="e.g. Bedroom Fan" style="width:100%;background:#020c14;border:1px solid #00e5ff22;border-radius:4px;color:#00e5ffcc;font-family:'Share Tech Mono',monospace;font-size:.45rem;padding:5px 8px;outline:none"/>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:.35rem;color:#00e5ff55;letter-spacing:1px;margin-bottom:4px">DEVICE TYPE</div>
+        <select id="inp-type" style="width:100%;background:#020c14;border:1px solid #00e5ff22;border-radius:4px;color:#00e5ffcc;font-family:'Share Tech Mono',monospace;font-size:.42rem;padding:5px 8px;outline:none;-webkit-appearance:none">
+          <option value="fan">⚙  FAN WITH DIMMER</option>
+          <option value="light">💡  LIGHT</option>
+          <option value="socket">⚡  SOCKET</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:.35rem;color:#00e5ff55;letter-spacing:1px;margin-bottom:6px">THEME COLOR</div>
+        <div id="add-colors" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div onclick="closeAddModal()" style="flex:1;text-align:center;padding:6px;border:1px solid #ff444430;border-radius:4px;color:#ff4444;font-size:.42rem;cursor:pointer">CANCEL</div>
+        <div onclick="addDevice()" style="flex:1;text-align:center;padding:6px;border:1px solid #00e5ff44;border-radius:4px;color:var(--c);font-size:.42rem;cursor:pointer;background:rgba(0,229,255,.08)">ADD ✦</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REMOVE -->
+  <div id="removeModal" style="display:none;position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.88);align-items:center;justify-content:center">
+    <div style="background:#060f18;border:1px solid #ff444430;border-radius:10px;padding:16px;width:220px;font-family:'Share Tech Mono',monospace">
+      <div id="rm-s1">
+        <div style="font-size:.55rem;color:var(--r);letter-spacing:3px;margin-bottom:12px;text-align:center">◈ REMOVE ◈</div>
+        <div id="rm-list" style="display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px">
+          <div onclick="closeRemoveModal()" style="flex:1;text-align:center;padding:6px;border:1px solid #fff2;border-radius:4px;color:#fff4;font-size:.4rem;cursor:pointer">CANCEL</div>
+          <div onclick="proceedRemove()" style="flex:1;text-align:center;padding:6px;border:1px solid #ff444444;border-radius:4px;color:var(--r);font-size:.4rem;cursor:pointer">REMOVE ✕</div>
+        </div>
+      </div>
+      <div id="rm-s2" style="display:none">
+        <div style="font-size:.55rem;color:var(--r);letter-spacing:3px;margin-bottom:10px;text-align:center">CONFIRM?</div>
+        <div id="rm-names" style="font-size:.42rem;color:var(--r);text-align:center;margin-bottom:14px;line-height:1.8"></div>
+        <div style="display:flex;gap:8px">
+          <div onclick="openRemoveModal()" style="flex:1;text-align:center;padding:6px;border:1px solid #fff2;border-radius:4px;color:#fff4;font-size:.4rem;cursor:pointer">BACK</div>
+          <div onclick="confirmRemove()" style="flex:1;text-align:center;padding:6px;border:1px solid var(--r);border-radius:4px;color:var(--r);font-size:.4rem;cursor:pointer;background:rgba(255,68,68,.1)">YES, REMOVE</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPDATE -->
+  <div id="updateModal" style="display:none;position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.88);align-items:center;justify-content:center">
+    <div id="updateBox" style="background:#060f18;border:1px solid #00e5ff28;border-radius:10px;padding:16px;width:230px;font-family:'Share Tech Mono',monospace">
+      <div id="upd-s1">
+        <div style="font-size:.55rem;color:var(--c);letter-spacing:3px;margin-bottom:12px;text-align:center">✎ UPDATE DEVICE</div>
+        <div id="upd-list" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;margin-bottom:12px"></div>
+        <div onclick="closeUpdateModal()" style="text-align:center;padding:6px;border:1px solid #fff2;border-radius:4px;color:#fff4;font-size:.4rem;cursor:pointer">CANCEL</div>
+      </div>
+      <div id="upd-s2" style="display:none">
+        <div id="upd-title" style="font-size:.52rem;color:var(--c);letter-spacing:3px;margin-bottom:14px;text-align:center">✎ EDIT</div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:.35rem;color:#00e5ff55;letter-spacing:1px;margin-bottom:4px">DEVICE NAME</div>
+          <input id="upd-name" type="text" style="width:100%;background:#020c14;border:1px solid #00e5ff22;border-radius:4px;color:#00e5ffcc;font-family:'Share Tech Mono',monospace;font-size:.45rem;padding:5px 8px;outline:none"/>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:.35rem;color:#00e5ff55;letter-spacing:1px;margin-bottom:6px">THEME COLOR</div>
+          <div id="upd-colors" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+        </div>
+        <div id="upd-view-row" style="display:none;margin-bottom:10px">
+          <div style="font-size:.35rem;color:#00e5ff55;letter-spacing:1px;margin-bottom:4px">SPEED VIEW</div>
+          <select id="upd-view-sel" style="width:100%;background:#020c14;border:1px solid #00e5ff22;border-radius:4px;color:#00e5ffcc;font-family:'Share Tech Mono',monospace;font-size:.42rem;padding:5px 8px;outline:none;-webkit-appearance:none">
+            <option value="slider">⎀  SLIDER</option>
+            <option value="buttons">±  BUTTONS</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div onclick="openUpdateModal()" style="flex:1;text-align:center;padding:6px;border:1px solid #fff2;border-radius:4px;color:#fff4;font-size:.4rem;cursor:pointer">← BACK</div>
+          <div onclick="applyUpdate()" style="flex:1;text-align:center;padding:6px;border:1px solid #00e5ff44;border-radius:4px;color:var(--c);font-size:.4rem;cursor:pointer;background:rgba(0,229,255,.08)">APPLY ✦</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RENAME -->
+  <div id="renameModal" style="display:none;position:absolute;inset:0;z-index:25;background:rgba(0,0,0,.88);align-items:center;justify-content:center">
+    <div style="background:#060f18;border:1px solid #00e5ff28;border-radius:10px;padding:16px;width:210px;font-family:'Share Tech Mono',monospace">
+      <div style="font-size:.5rem;color:var(--c);letter-spacing:3px;margin-bottom:12px;text-align:center">◈ RENAME ROOM ◈</div>
+      <input id="inp-room" type="text" placeholder="e.g. Living Room" style="width:100%;background:#020c14;border:1px solid #00e5ff22;border-radius:4px;color:#00e5ffcc;font-family:'Share Tech Mono',monospace;font-size:.45rem;padding:5px 8px;outline:none;margin-bottom:12px"/>
+      <div style="display:flex;gap:8px">
+        <div onclick="closeRenameModal()" style="flex:1;text-align:center;padding:6px;border:1px solid #fff2;border-radius:4px;color:#fff4;font-size:.4rem;cursor:pointer">CANCEL</div>
+        <div onclick="applyRename()" style="flex:1;text-align:center;padding:6px;border:1px solid #00e5ff44;border-radius:4px;color:var(--c);font-size:.4rem;cursor:pointer;background:rgba(0,229,255,.08)">APPLY ✦</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRM (shown after dropping on bin) -->
+  <div id="deleteModal" style="display:none;position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.92);align-items:center;justify-content:center;animation:fadeIn .18s ease">
+    <div style="background:#060f18;border:1px solid #ff444430;border-radius:10px;padding:18px;width:200px;font-family:'Share Tech Mono',monospace;text-align:center">
+      <div style="font-size:.5rem;color:var(--r);letter-spacing:2px;margin-bottom:8px">REMOVE PANEL?</div>
+      <div id="delName" style="font-size:.4rem;color:#ff444450;margin-bottom:16px;letter-spacing:1px"></div>
+      <div style="display:flex;gap:8px">
+        <div onclick="cancelDelete()" style="flex:1;padding:7px;border:1px solid #fff2;border-radius:4px;color:#fff4;font-size:.4rem;cursor:pointer">CANCEL</div>
+        <div onclick="confirmDelete()" style="flex:1;padding:7px;border:1px solid var(--r);border-radius:4px;color:var(--r);font-size:.4rem;cursor:pointer;background:rgba(255,68,68,.1)">REMOVE</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scanlines"></div>
+</div>
+</div>
+
+<div class="instructions">
+  <div class="chip"><b>LONG PRESS</b> panel → wiggle mode</div>
+  <div class="chip"><b>DRAG</b> to reorder panels</div>
+  <div class="chip"><b>DROP ON 🗑️</b> to remove</div>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════
+// CONSTANTS + STATE
+// ══════════════════════════════════
+const COLORS = [
+  {hex:'ffcc00',rgb:'255,200,0'},
+  {hex:'00e5ff',rgb:'0,229,255'},
+  {hex:'aa44ff',rgb:'170,68,255'},
+  {hex:'00ff88',rgb:'0,255,136'},
+  {hex:'ff6600',rgb:'255,102,0'},
+  {hex:'ff4488',rgb:'255,68,136'},
+  {hex:'ffffff',rgb:'255,255,255'},
+];
+const SPD_C   = ['#ff4444','#ff8800','#ffcc00','#88ff44','#00e5ff'];
+const SPIN_DUR= [null,'2s','1.2s','0.7s','0.3s'];
+const LONG_MS = 480;
+
+// Static device state
+let spd=0,fon=false,lastSpd=1,sliderView=true,lon=false;
+
+// Dynamic devices
+let devices=[];
+let addColVal={hex:'ffcc00',rgb:'255,200,0'};
+let updColVal={hex:'00e5ff',rgb:'0,229,255'};
+let updId=null, pendingRm=[];
+
+const staticMeta = {
+  fanPanel:{name:'FAN CONTROL',type:'fan',hex:'00e5ff',rgb:'0,229,255'},
+  lPanel:  {name:'LIGHT CONTROL',type:'light',hex:'ffcc00',rgb:'255,200,0'},
+};
+
+// ── Helpers ──
+const $ = id => document.getElementById(id);
+const haptic = p => { try{navigator.vibrate(p)}catch(e){} };
+
+// Inject shared keyframe
+const _ks = document.createElement('style');
+_ks.textContent = '@keyframes glowPulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.1);opacity:1}}';
+document.head.appendChild(_ks);
+
+// ══════════════════════════════════
+// CLOCK
+// ══════════════════════════════════
+(function tick(){
+  const n=new Date();
+  $('clk').textContent=[n.getHours(),n.getMinutes(),n.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+  setTimeout(tick,1000);
+})();
+
+// ══════════════════════════════════
+// SETTINGS DROPDOWN
+// ══════════════════════════════════
+function toggleSettings(){
+  const m=$('settingsMenu');
+  m.style.display = m.style.display==='none' ? 'block' : 'none';
+}
+document.addEventListener('click',e=>{
+  const m=$('settingsMenu'),b=$('settingsBtn');
+  if(m&&b&&!b.contains(e.target)&&!m.contains(e.target)) m.style.display='none';
+});
+
+// ══════════════════════════════════
+// STATIC FAN
+// ══════════════════════════════════
+function togFan(){
+  fon=!fon;
+  const btn=$('fanOnOff'),ring=$('fanGring');
+  btn.classList.toggle('on',fon);
+  if(fon){ spd=lastSpd; ring.style.borderColor='#00e5ff33'; ring.style.animation='glowPulse 2s ease-in-out infinite'; }
+  else   { lastSpd=spd; spd=0; ring.style.borderColor='transparent'; ring.style.animation='none'; }
+  renderFan();
+}
+function onSlider(val){
+  const v=parseInt(val);
+  if(v===0){
+    if(fon){fon=false;lastSpd=spd||lastSpd;spd=0;$('fanOnOff').classList.remove('on');$('fanGring').style.borderColor='transparent';$('fanGring').style.animation='none';}
+  } else {
+    if(!fon){fon=true;$('fanOnOff').classList.add('on');$('fanGring').style.borderColor='#00e5ff33';$('fanGring').style.animation='glowPulse 2s ease-in-out infinite';}
+    spd=v;lastSpd=v;
+  }
+  renderFan();
+}
+function chSpd(d){ if(!fon)return; const s=spd+d; if(s<1||s>4)return; spd=s;lastSpd=s; renderFan(); }
+function renderFan(){
+  const c=SPD_C[spd];
+  const gn=$('gNum'); gn.textContent=spd?spd:'OFF'; gn.style.color=c; gn.style.textShadow=`0 0 15px ${c}88`;
+  const sl=$('spdSlider'); sl.value=spd; sl.className=spd?'spd-slider':'spd-slider off-state';
+  const pct=(spd/4)*100; sl.style.background=`linear-gradient(90deg,${c}88 ${pct}%,#00e5ff11 ${pct}%)`;
+  for(let i=0;i<4;i++) $('d'+i).classList.toggle('lit',i<spd);
+  $('bDown').classList.toggle('off',!fon||spd<=1);
+  $('bUp').classList.toggle('off',!fon||spd===4);
+  $('fanPanel').classList.toggle('active',spd>0);
+  const svg=$('fanSvg');
+  if(fon&&spd){svg.style.animation=`fanSpin ${SPIN_DUR[spd]} linear infinite`;svg.style.filter='drop-shadow(0 0 4px #00e5ff)';}
+  else{svg.style.animation='none';svg.style.filter='grayscale(1) brightness(.3)';}
+  const sb=$('sbFan'); if(sb){sb.textContent=spd?'ON':'OFF';sb.style.color=spd?c:'#fff2';sb.style.textShadow=spd?`0 0 6px ${c}66`:'';}
+}
+
+// ══════════════════════════════════
+// STATIC LIGHT
+// ══════════════════════════════════
+function togLight(){
+  lon=!lon;
+  $('lBtn').classList.toggle('active',lon);
+  $('lPanel').classList.toggle('active',lon);
+  $('gring').style.borderColor=lon?'#ffcc0033':'transparent';
+  $('gring').style.animation=lon?'glowPulse 2s ease-in-out infinite':'none';
+  const n=$('lightNum');
+  if(lon){n.textContent='ON';n.style.color='#ffcc00';n.style.textShadow='0 0 15px #ffcc0088';}
+  else   {n.textContent='OFF';n.style.color='#ff4444';n.style.textShadow='0 0 15px #ff444488';}
+  const sb=$('sbLight'); if(sb){sb.textContent=lon?'ON':'OFF';sb.style.color=lon?'#ffcc00':'#fff2';sb.style.textShadow=lon?'0 0 6px #ffcc0066':'';}
+}
+
+// ══════════════════════════════════
+// STATUS BAR
+// ══════════════════════════════════
+function rebuildSbar(){
+  const bar=$('sbar'); bar.innerHTML='';
+  document.querySelectorAll('#mainContent .d-panel').forEach(p=>{
+    const pid=p.id, blk=document.createElement('div'); blk.className='sblk';
+    if(pid==='fanPanel'){
+      blk.innerHTML=`<div class="slbl">FAN</div><div class="sval" id="sbFan" style="color:#fff2">OFF</div>`;
+    } else if(pid==='lPanel'){
+      blk.innerHTML=`<div class="slbl">LIGHT</div><div class="sval" id="sbLight" style="color:#fff2">OFF</div>`;
+    } else {
+      const dev=devices.find(d=>'panel_'+d.id===pid); if(!dev) return;
+      const cur=dev.state?(dev.type==='fan'?dev.spd.toString():'ON'):'OFF';
+      blk.innerHTML=`<div class="slbl">${dev.name.slice(0,6).toUpperCase()}</div><div class="sval" id="sbv_${dev.id}" style="color:${dev.state?'#'+dev.hex:'#fff2'}">${cur}</div>`;
+    }
+    bar.appendChild(blk);
+  });
+  renderFan();
+  if($('sbLight')){$('sbLight').textContent=lon?'ON':'OFF';$('sbLight').style.color=lon?'#ffcc00':'#fff2';}
+}
+
+// ══════════════════════════════════
+// REBALANCE PANEL WIDTHS
+// ══════════════════════════════════
+function rebalance(){
+  const all=Array.from(document.querySelectorAll('#mainContent .d-panel'));
+  const n=all.length; if(!n){rebuildSbar();return;}
+  const w=n<=3 ? Math.floor((480-20-(n-1)*10)/n) : Math.floor((480-20-20)/3);
+  all.forEach(p=>{p.style.width=w+'px';p.style.minWidth=w+'px';p.style.maxWidth=w+'px';p.style.flex='none';});
+  rebuildSbar();
+}
+
+// ══════════════════════════════════
+// COLOR PICKERS (shared builder)
+// ══════════════════════════════════
+function buildColorPicker(containerId, activeHex, onSelect, cls){
+  const c=$(containerId); c.innerHTML='';
+  COLORS.forEach((col,i)=>{
+    const d=document.createElement('div');
+    d.className=cls; d.dataset.hex=col.hex; d.dataset.rgb=col.rgb;
+    d.style.cssText=`width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;opacity:.65;background:#${col.hex};flex-shrink:0`;
+    if(col.hex===activeHex) d.style.cssText+=';opacity:1;border-color:#fff;box-shadow:0 0 6px #fff8';
+    d.onclick=()=>{
+      c.querySelectorAll('.'+cls).forEach(x=>{x.style.opacity='.65';x.style.borderColor='transparent';x.style.boxShadow='';});
+      d.style.opacity='1'; d.style.borderColor='#fff'; d.style.boxShadow='0 0 6px #fff8';
+      onSelect({hex:col.hex,rgb:col.rgb});
+    };
+    c.appendChild(d);
+  });
+}
+
+// ══════════════════════════════════
+// ADD DEVICE
+// ══════════════════════════════════
+function openAddModal(){
+  addColVal={hex:'ffcc00',rgb:'255,200,0'};
+  $('inp-name').value='';
+  buildColorPicker('add-colors','ffcc00',v=>addColVal=v,'add-col-dot');
+  $('addModal').style.display='flex';
+}
+function closeAddModal(){ $('addModal').style.display='none'; }
+function addDevice(){
+  const name=$('inp-name').value.trim(); if(!name){$('inp-name').style.borderColor='#ff4444';return;}
+  $('inp-name').style.borderColor='#00e5ff22';
+  const type=$('inp-type').value, id='d'+Date.now();
+  const dev={id,name,type,hex:addColVal.hex,rgb:addColVal.rgb,state:false,spd:0,fon:false,lastSpd:1,sliderView:true};
+  devices.push(dev);
+  injectCSS(dev); injectPanel(dev); rebalance(); closeAddModal();
+}
+
+// ══════════════════════════════════
+// REMOVE DEVICE (modal)
+// ══════════════════════════════════
+function openRemoveModal(){
+  pendingRm=[];
+  $('rm-s1').style.display='block'; $('rm-s2').style.display='none';
+  const list=$('rm-list'); list.innerHTML='';
+  const allDevs=[
+    {id:'fanPanel',name:'FAN CONTROL',type:'fan',hex:'00e5ff',isStatic:true},
+    {id:'lPanel',name:'LIGHT CONTROL',type:'light',hex:'ffcc00',isStatic:true},
+    ...devices.map(d=>({...d,isStatic:false}))
+  ];
+  allDevs.forEach(d=>{
+    const el=document.getElementById(d.isStatic?d.id:'panel_'+d.id); if(!el) return;
+    const row=document.createElement('label');
+    row.style.cssText=`display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid #${d.hex}20;border-radius:4px;cursor:pointer`;
+    row.innerHTML=`<input type="checkbox" data-id="${d.id}" data-static="${d.isStatic}" style="width:12px;height:12px;accent-color:#${d.hex};cursor:pointer;flex-shrink:0">
+      <span style="font-size:.42rem;color:#${d.hex};letter-spacing:1px;flex:1">${d.name.toUpperCase()}</span>
+      <span style="font-size:.3rem;color:#fff3">${d.type.toUpperCase()}</span>`;
+    list.appendChild(row);
+  });
+  $('removeModal').style.display='flex';
+}
+function closeRemoveModal(){ $('removeModal').style.display='none'; }
+function proceedRemove(){
+  const checks=document.querySelectorAll('#rm-list input:checked'); if(!checks.length) return;
+  pendingRm=Array.from(checks).map(c=>({id:c.dataset.id,isStatic:c.dataset.static==='true'}));
+  $('rm-names').innerHTML=pendingRm.map(({id,isStatic})=>{
+    const name=isStatic?({fanPanel:'FAN CONTROL',lPanel:'LIGHT CONTROL'}[id]||id):(devices.find(d=>d.id===id)?.name||id);
+    return `• ${name.toUpperCase()}`;
+  }).join('<br>');
+  $('rm-s1').style.display='none'; $('rm-s2').style.display='block';
+}
+function confirmRemove(){
+  pendingRm.forEach(({id,isStatic})=>{
+    if(isStatic){ const p=document.getElementById(id); if(p) p.remove(); }
+    else { devices=devices.filter(d=>d.id!==id); const p=document.getElementById('panel_'+id); if(p) p.remove(); const c=document.getElementById('css_'+id); if(c) c.remove(); }
+  });
+  rebalance(); closeRemoveModal();
+}
+
+// ══════════════════════════════════
+// UPDATE DEVICE
+// ══════════════════════════════════
+function openUpdateModal(){
+  updId=null; $('upd-s1').style.display='block'; $('upd-s2').style.display='none';
+  const list=$('upd-list'); list.innerHTML='';
+  const allDevs=[
+    ...Object.entries(staticMeta).map(([id,m])=>({id,...m,isStatic:true})),
+    ...devices.map(d=>({...d,isStatic:false}))
+  ];
+  allDevs.forEach(d=>{
+    const el=document.getElementById(d.isStatic?d.id:'panel_'+d.id); if(!el) return;
+    const row=document.createElement('div');
+    row.style.cssText=`display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid #${d.hex}20;border-radius:4px;cursor:pointer;transition:background .15s`;
+    row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:#${d.hex};flex-shrink:0;box-shadow:0 0 6px #${d.hex}88"></div>
+      <span style="font-size:.42rem;color:#${d.hex};letter-spacing:1px;flex:1">${d.name.toUpperCase()}</span>
+      <span style="font-size:.3rem;color:#fff3">${d.type.toUpperCase()}</span>`;
+    row.onmouseover=()=>row.style.background='rgba(255,255,255,.04)';
+    row.onmouseout=()=>row.style.background='none';
+    row.onclick=()=>openEditStep(d.id,d.isStatic);
+    list.appendChild(row);
+  });
+  $('updateModal').style.display='flex';
+}
+function closeUpdateModal(){ $('updateModal').style.display='none'; }
+function openEditStep(id,isStatic){
+  updId=id;
+  const meta=isStatic?staticMeta[id]:devices.find(d=>d.id===id); if(!meta) return;
+  updColVal={hex:meta.hex,rgb:meta.rgb};
+  $('upd-name').value=meta.name;
+  buildColorPicker('upd-colors',meta.hex,v=>updColVal=v,'upd-col-dot');
+  const isFan=meta.type==='fan';
+  $('upd-view-row').style.display=isFan?'block':'none';
+  if(isFan){
+    const sv=isStatic?sliderView:(meta.sliderView!==false);
+    $('upd-view-sel').value=sv?'slider':'buttons';
+  }
+  $('updateBox').style.borderColor='#'+meta.hex+'44';
+  $('upd-title').textContent=`✎ ${meta.name.toUpperCase()}`; $('upd-title').style.color='#'+meta.hex;
+  $('upd-s1').style.display='none'; $('upd-s2').style.display='block';
+}
+function applyUpdate(){
+  const id=updId; if(!id) return;
+  const newName=$('upd-name').value.trim(); if(!newName) return;
+  const {hex:nh,rgb:nr}=updColVal;
+  const isStatic=!!staticMeta[id];
+  const type=isStatic?staticMeta[id].type:(devices.find(d=>d.id===id)||{}).type;
+  const isFan=type==='fan', useSlider=$('upd-view-sel').value==='slider';
+  if(isStatic){ staticMeta[id].name=newName; staticMeta[id].hex=nh; staticMeta[id].rgb=nr; }
+  else { const dev=devices.find(d=>d.id===id); if(dev){dev.name=newName;dev.hex=nh;dev.rgb=nr;if(isFan)dev.sliderView=useSlider;} }
+  const panel=document.getElementById(isStatic?id:'panel_'+id); if(!panel) return;
+  const lbl=panel.querySelector('.plbl'); if(lbl){lbl.textContent=`◈ ${newName.toUpperCase()} ◈`;lbl.style.color='#'+nh+'44';}
+  panel.style.borderColor='#'+nh+'18'; panel.style.background=`rgba(${nr},.02)`;
+  if(isFan&&isStatic){ sliderView=useSlider; $('viewSlider').style.display=useSlider?'flex':'none'; $('viewBtns').style.display=useSlider?'none':'flex'; }
+  else if(isFan&&!isStatic){ const vs=document.getElementById('vslider_'+id),vb=document.getElementById('vbtns_'+id); if(vs)vs.style.display=useSlider?'flex':'none'; if(vb)vb.style.display=useSlider?'none':'flex'; const oc=document.getElementById('css_'+id); if(oc)oc.remove(); injectCSS(devices.find(d=>d.id===id)); }
+  const btn=document.getElementById('btn_'+id); if(btn){btn.style.borderColor='#'+nh+'33';btn.style.background=`rgba(${nr},.04)`;}
+  const svg=document.getElementById('svg_'+id);
+  if(svg&&isFan){svg.querySelectorAll('path').forEach(e=>e.setAttribute('fill','#'+nh));svg.querySelectorAll('circle').forEach((e,i)=>{if(i===0)e.setAttribute('fill','#'+nh);});}
+  if(svg&&type==='socket'){svg.querySelectorAll('[stroke]').forEach(e=>e.setAttribute('stroke','#'+nh));svg.querySelectorAll('[fill]:not([fill="none"])').forEach(e=>e.setAttribute('fill','#'+nh));}
+  rebuildSbar(); closeUpdateModal();
+}
+
+// ══════════════════════════════════
+// RENAME ROOM
+// ══════════════════════════════════
+function openRenameModal(){ $('inp-room').value=''; $('renameModal').style.display='flex'; }
+function closeRenameModal(){ $('renameModal').style.display='none'; }
+function applyRename(){
+  const v=$('inp-room').value.trim(); if(!v) return;
+  $('roomLbl').childNodes[0].textContent=v.toUpperCase();
+  closeRenameModal();
+}
+
+// ══════════════════════════════════
+// DYNAMIC PANEL CSS + HTML
+// ══════════════════════════════════
+function injectCSS(dev){
+  const {id,hex,rgb}=dev;
+  const st=document.createElement('style'); st.id='css_'+id;
+  st.textContent=`
+    #btn_${id}.on,#btn_${id}.active{border-color:#${hex}!important;background:rgba(${rgb},.13)!important;box-shadow:0 0 22px #${hex}33,inset 0 0 14px #${hex}10!important}
+    @keyframes spin_${id}{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+    @keyframes glow_${id}{0%,100%{filter:drop-shadow(0 0 5px #${hex}) drop-shadow(0 0 10px #${hex}88)}50%{filter:drop-shadow(0 0 14px #${hex}) drop-shadow(0 0 28px #${hex}cc)}}
+    @keyframes skglow_${id}{0%,100%{filter:drop-shadow(0 0 4px #${hex})}50%{filter:drop-shadow(0 0 10px #${hex}) drop-shadow(0 0 18px #${hex}bb)}}
+  `;
+  document.head.appendChild(st);
+}
+function injectPanel(dev){
+  const {id,name,type,hex,rgb}=dev, mc=$('mainContent');
+  const p=document.createElement('div'); p.id='panel_'+id; p.className='d-panel';
+  if(type==='fan'){
+    p.style.cssText=`background:rgba(0,180,220,.03);border:1px solid #${hex}18;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:10px 8px;gap:10px;overflow:hidden;transition:border-color .3s,background .3s,box-shadow .3s`;
+    p.innerHTML=`
+      <div class="plbl" style="color:#${hex}44">◈ ${name.toUpperCase()} ◈</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
+        <div class="fan-btn-wrap" style="margin-top:4px">
+          <div id="btn_${id}" onclick="dynTogFan('${id}')" style="width:72px;height:72px;border-radius:50%;border:2px solid #${hex}33;background:rgba(${rgb},.04);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .25s;user-select:none">
+            <svg id="svg_${id}" width="36" height="36" viewBox="0 0 100 100" style="filter:grayscale(1) brightness(.3);transition:filter .3s">
+              <path d="M50 50 Q60 20 50 5 Q35 20 50 50" fill="#${hex}" opacity=".9"/>
+              <path d="M50 50 Q80 60 95 50 Q80 35 50 50" fill="#${hex}" opacity=".9"/>
+              <path d="M50 50 Q40 80 50 95 Q65 80 50 50" fill="#${hex}" opacity=".9"/>
+              <path d="M50 50 Q20 40 5 50 Q20 65 50 50" fill="#${hex}" opacity=".9"/>
+              <circle cx="50" cy="50" r="8" fill="#${hex}"/><circle cx="50" cy="50" r="4" fill="#020c14"/>
+            </svg>
+          </div>
+          <div id="ring_${id}" class="fan-gring"></div>
+        </div>
+        <div style="text-align:center;margin-top:12px">
+          <span id="spd_${id}" style="font-size:1.3rem;font-weight:900;color:#ff4444;font-family:'Orbitron',monospace;text-shadow:0 0 15px #ff444488;display:block;line-height:1">OFF</span>
+          <span style="display:block;font-size:.28rem;color:#${hex}44;letter-spacing:2px;font-family:'Share Tech Mono',monospace;margin-top:3px">SPEED</span>
+        </div>
+        <div id="vslider_${id}" class="slider-wrap" style="margin-top:14px">
+          <div class="slider-labels" style="color:#${hex}44"><span>OFF</span><span>1</span><span>2</span><span>3</span><span>4</span></div>
+          <input type="range" min="0" max="4" value="0" class="spd-slider" id="slider_${id}" oninput="dynOnSlider('${id}',this.value)">
+        </div>
+        <div id="vbtns_${id}" class="speed-row" style="display:none;margin-top:14px">
+          <button id="bdn_${id}" class="sb off" onclick="dynChSpd('${id}',-1)">−</button>
+          <div class="dots"><div class="dot" id="dd0_${id}"></div><div class="dot" id="dd1_${id}"></div><div class="dot" id="dd2_${id}"></div><div class="dot" id="dd3_${id}"></div></div>
+          <button id="bup_${id}" class="sb off" onclick="dynChSpd('${id}',1)">+</button>
+        </div>
+      </div>`;
+  } else {
+    const isSoc=type==='socket';
+    const icon=isSoc
+      ?`<svg id="svg_${id}" width="38" height="38" viewBox="0 0 100 100" style="filter:grayscale(1) brightness(.3);transition:filter .3s"><rect x="15" y="18" width="70" height="68" rx="10" fill="none" stroke="#${hex}" stroke-width="5"/><circle cx="50" cy="36" r="7" fill="#${hex}"/><rect x="23" y="52" width="8" height="20" rx="4" fill="#${hex}"/><rect x="69" y="52" width="8" height="20" rx="4" fill="#${hex}"/></svg>`
+      :`<div id="svg_${id}" style="font-size:1.8rem;line-height:1;filter:grayscale(1) brightness(.3);transition:filter .3s">💡</div>`;
+    p.style.cssText=`background:rgba(${rgb},.02);border:1px solid #${hex}18;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:10px 8px;gap:10px;overflow:hidden;transition:border-color .3s,background .3s,box-shadow .3s`;
+    p.innerHTML=`
+      <div class="plbl" style="color:#${hex}44">◈ ${name.toUpperCase()} ◈</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%">
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:72px;height:72px;flex-shrink:0;margin-top:4px">
+          <div id="btn_${id}" onclick="dynTogLight('${id}')" style="width:72px;height:72px;border-radius:50%;border:2px solid #${hex}33;background:rgba(${rgb},.04);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .25s;user-select:none">${icon}</div>
+          <div id="ring_${id}" style="width:82px;height:82px;border-radius:50%;border:1px solid transparent;position:absolute;pointer-events:none;transition:border-color .4s"></div>
+        </div>
+        <div style="text-align:center;margin-top:12px">
+          <span id="spd_${id}" style="font-size:1.3rem;font-weight:900;color:#ff4444;font-family:'Orbitron',monospace;text-shadow:0 0 15px #ff444488;display:block;line-height:1">OFF</span>
+          <span style="display:block;font-size:.28rem;color:#${hex}44;letter-spacing:2px;font-family:'Share Tech Mono',monospace;margin-top:3px">STATUS</span>
+        </div>
+      </div>`;
+  }
+  mc.appendChild(p);
+  attachInteraction(p);
+}
+
+// ══════════════════════════════════
+// DYNAMIC DEVICE CONTROLS
+// ══════════════════════════════════
+function dynTogFan(id){
+  const dev=devices.find(d=>d.id===id); if(!dev) return;
+  dev.fon=!dev.fon;
+  const btn=$('btn_'+id),ring=$('ring_'+id),svg=$('svg_'+id);
+  if(dev.fon){dev.spd=dev.lastSpd||1;dev.state=true;btn.classList.add('on');ring.style.borderColor=`#${dev.hex}33`;ring.style.animation='glowPulse 2s ease-in-out infinite';svg.style.animation=`spin_${id} ${SPIN_DUR[dev.spd]} linear infinite`;svg.style.filter=`drop-shadow(0 0 4px #${dev.hex})`;}
+  else{dev.lastSpd=dev.spd;dev.spd=0;dev.state=false;btn.classList.remove('on');ring.style.borderColor='transparent';ring.style.animation='none';svg.style.animation='none';svg.style.filter='grayscale(1) brightness(.3)';}
+  syncDynFan(id); updateDynSbar(id);
+}
+function dynOnSlider(id,val){
+  const dev=devices.find(d=>d.id===id); if(!dev) return;
+  const v=parseInt(val), btn=$('btn_'+id),ring=$('ring_'+id),svg=$('svg_'+id);
+  if(v===0){dev.lastSpd=dev.spd||1;dev.spd=0;dev.fon=false;dev.state=false;btn.classList.remove('on');ring.style.borderColor='transparent';ring.style.animation='none';svg.style.animation='none';svg.style.filter='grayscale(1) brightness(.3)';}
+  else{dev.spd=v;dev.fon=true;dev.lastSpd=v;dev.state=true;btn.classList.add('on');ring.style.borderColor=`#${dev.hex}33`;ring.style.animation='glowPulse 2s ease-in-out infinite';svg.style.animation=`spin_${id} ${SPIN_DUR[v]} linear infinite`;svg.style.filter=`drop-shadow(0 0 4px #${dev.hex})`;}
+  syncDynFan(id); updateDynSbar(id);
+}
+function dynChSpd(id,d){
+  const dev=devices.find(x=>x.id===id); if(!dev||!dev.fon) return;
+  const ns=dev.spd+d; if(ns<1||ns>4) return;
+  dev.spd=ns;dev.lastSpd=ns;$('svg_'+id).style.animation=`spin_${id} ${SPIN_DUR[ns]} linear infinite`;
+  syncDynFan(id); updateDynSbar(id);
+}
+function syncDynFan(id){
+  const dev=devices.find(d=>d.id===id); if(!dev) return;
+  const sl=$('slider_'+id);
+  if(sl){const c=dev.spd?SPD_C[dev.spd]:'#ff4444';sl.value=dev.spd;sl.className=dev.spd?'spd-slider':'spd-slider off-state';sl.style.background=`linear-gradient(90deg,${c}88 ${(dev.spd/4)*100}%,#00e5ff11 ${(dev.spd/4)*100}%)`;}
+  for(let i=0;i<4;i++){const dot=$('dd'+i+'_'+id);if(dot)dot.classList.toggle('lit',i<dev.spd);}
+  const sn=$('spd_'+id); if(sn){const c=dev.spd?SPD_C[dev.spd]:'#ff4444';sn.textContent=dev.spd||'OFF';sn.style.color=c;sn.style.textShadow=`0 0 15px ${c}88`;}
+  const bd=$('bdn_'+id),bu=$('bup_'+id); if(bd)bd.classList.toggle('off',!dev.fon||dev.spd<=1); if(bu)bu.classList.toggle('off',!dev.fon||dev.spd===4);
+}
+function dynTogLight(id){
+  const dev=devices.find(d=>d.id===id); if(!dev) return;
+  dev.state=!dev.state;
+  const btn=$('btn_'+id),ring=$('ring_'+id),ico=$('svg_'+id);
+  btn.classList.toggle('active',dev.state);
+  const p=document.getElementById('panel_'+id); p.style.borderColor=dev.state?`#${dev.hex}44`:`#${dev.hex}18`;
+  ring.style.borderColor=dev.state?`#${dev.hex}33`:'transparent'; ring.style.animation=dev.state?'glowPulse 2s ease-in-out infinite':'none';
+  if(dev.state){const anim=dev.type==='socket'?`skglow_${id}`:`glow_${id}`;ico.style.animation=`${anim} 1.5s ease-in-out infinite`;ico.style.filter=`drop-shadow(0 0 8px #${dev.hex})`;}
+  else{ico.style.animation='none';ico.style.filter='grayscale(1) brightness(.3)';}
+  const sn=$('spd_'+id); if(sn){const c=dev.state?`#${dev.hex}`:'#ff4444';sn.textContent=dev.state?'ON':'OFF';sn.style.color=c;sn.style.textShadow=`0 0 15px ${c}88`;}
+  updateDynSbar(id);
+}
+function updateDynSbar(id){
+  const dev=devices.find(d=>d.id===id); if(!dev) return;
+  const sb=$('sbv_'+id); if(!sb) return;
+  if(dev.state){sb.textContent=dev.type==='fan'?dev.spd.toString():'ON';sb.style.color='#'+dev.hex;sb.style.textShadow=`0 0 6px #${dev.hex}55`;}
+  else{sb.textContent='OFF';sb.style.color='#fff2';sb.style.textShadow='';}
+}
+function noop(){}
+
+// ══════════════════════════════════════════════════════
+// MIUI-STYLE DRAG + REORDER + DUSTBIN DELETE
+// ══════════════════════════════════════════════════════
+
+let editMode=false;
+let dragEl=null;        // panel being dragged
+let dragPh=null;        // placeholder div
+let ghostOffX=0, ghostOffY=0;
+let longTimer=null;
+let onBin=false;
+let pendingDelPanel=null;
+
+// ── Edit mode ──
+function enterEdit(){
+  if(editMode) return;
+  editMode=true; haptic([20,10,20]);
+  $('sbar').style.display='none';
+  $('editBar').classList.add('show');
+  document.querySelectorAll('#mainContent .d-panel').forEach(p=>p.classList.add('panel-wiggle'));
+}
+
+function exitEdit(){
+  if(!editMode) return;
+  editMode=false;
+  destroyGhost(); removePh(); onBin=false;
+  $('binBtn').classList.remove('hot');
+  $('editHint').classList.remove('hot');
+  $('editBar').classList.remove('show');
+  $('sbar').style.display='flex';
+  document.querySelectorAll('#mainContent .d-panel').forEach(p=>{
+    p.classList.remove('panel-wiggle');
+    p.style.opacity='1';
+  });
+  dragEl=null;
+}
+
+// ── Ghost ──
+function showGhost(panel, cx, cy){
+  const r=panel.getBoundingClientRect();
+  ghostOffX=cx-r.left; ghostOffY=cy-r.top;
+  const gh=$('ghost'), cs=getComputedStyle(panel);
+  gh.className='';
+  // Capture live content snapshot
+  const lbl=panel.querySelector('.plbl');
+  const val=panel.querySelector('[id^="spd_"], #gNum, #lightNum');
+  gh.innerHTML=`<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 6px">
+    ${lbl?`<div style="font-family:'Share Tech Mono',monospace;font-size:.38rem;letter-spacing:2px;color:${lbl.style.color};text-align:center;white-space:nowrap">${lbl.textContent}</div>`:''}
+    ${val?`<div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:900;color:${val.style.color}">${val.textContent}</div>`:''}
+  </div>`;
+  gh.style.cssText=`left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;background:${cs.background};border:${cs.border};display:block`;
+  posGhost(cx,cy);
+}
+function posGhost(cx,cy){
+  const gh=$('ghost'); if(!gh||gh.style.display==='none') return;
+  gh.style.left=(cx-ghostOffX)+'px';
+  gh.style.top=(cy-ghostOffY)+'px';
+}
+function destroyGhost(){ const gh=$('ghost'); if(gh) gh.style.display='none'; }
+
+// ── Placeholder ──
+function createPh(panel){
+  removePh();
+  const ph=document.createElement('div');
+  ph.id='drag-ph'; ph.className='drag-ph';
+  ph.style.width=panel.offsetWidth+'px';
+  ph.style.height=panel.offsetHeight+'px';
+  dragPh=ph;
+  panel.parentNode.insertBefore(ph,panel);
+}
+function removePh(){ if(dragPh&&dragPh.parentNode) dragPh.parentNode.removeChild(dragPh); dragPh=null; }
+
+// ── Placeholder positioning (real-time) ──
+function updatePh(clientX){
+  if(!dragPh||!dragEl) return;
+  const panels=Array.from($('mainContent').querySelectorAll('.d-panel:not(#drag-ph)')).filter(p=>p!==dragEl);
+  if(!panels.length) return;
+  let best=panels[0], bd=Infinity;
+  panels.forEach(p=>{const r=p.getBoundingClientRect(), cx=r.left+r.width/2, d=Math.abs(clientX-cx); if(d<bd){bd=d;best=p;}});
+  const br=best.getBoundingClientRect(), mc=$('mainContent');
+  if(clientX < br.left+br.width/2) mc.insertBefore(dragPh,best);
+  else mc.insertBefore(dragPh,best.nextSibling);
+}
+
+// ── Is pointer over dustbin? ──
+function checkBin(cx,cy){
+  const btn=$('binBtn'); if(!btn) return false;
+  const r=btn.getBoundingClientRect();
+  return cx>=r.left-14&&cx<=r.right+14&&cy>=r.top-14&&cy<=r.bottom+14;
+}
+
+// ── Begin drag ──
+function beginDrag(panel,cx,cy){
+  dragEl=panel;
+  panel.style.opacity='0';
+  panel.classList.remove('panel-wiggle');
+  createPh(panel);
+  showGhost(panel,cx,cy);
+  haptic([20,10,40]);
+}
+
+// ── During drag update ──
+function duringDrag(cx,cy){
+  posGhost(cx,cy);
+  updatePh(cx);
+  const isOnBin=checkBin(cx,cy);
+  if(isOnBin!==onBin){
+    onBin=isOnBin;
+    $('binBtn').classList.toggle('hot',isOnBin);
+    $('editHint').classList.toggle('hot',isOnBin);
+    $('ghost').classList.toggle('on-bin',isOnBin);
+    if(isOnBin) haptic(22);
+  }
+}
+
+// ── End drag ──
+function endDrag(cx,cy){
+  if(!dragEl) return;
+  const isOnBin=checkBin(cx,cy);
+  destroyGhost();
+  $('binBtn').classList.remove('hot');
+  $('editHint').classList.remove('hot');
+  $('ghost').className='';
+  onBin=false;
+
+  if(isOnBin){
+    // → Drop on dustbin: show confirm
+    removePh();
+    dragEl.style.opacity='1';
+    dragEl.classList.add('panel-wiggle');
+    pendingDelPanel=dragEl; dragEl=null;
+    const pid=pendingDelPanel.id, isSt=pid==='fanPanel'||pid==='lPanel';
+    const name=isSt?(staticMeta[pid]?.name||pid):(devices.find(d=>d.id===pid.replace('panel_',''))?.name||pid);
+    $('delName').textContent=name.toUpperCase();
+    $('deleteModal').style.display='flex';
+  } else {
+    // → Reorder
+    if(dragPh&&dragPh.parentNode) dragPh.parentNode.insertBefore(dragEl,dragPh);
+    removePh();
+    dragEl.style.opacity='1';
+    dragEl.classList.add('panel-wiggle');
+    haptic(12);
+    // Rebalance widths without exiting edit
+    const all=Array.from($('mainContent').querySelectorAll('.d-panel'));
+    const n=all.length; if(n>0){
+      const w=n<=3?Math.floor((480-20-(n-1)*10)/n):Math.floor((480-20-20)/3);
+      all.forEach(p=>{p.style.width=w+'px';p.style.minWidth=w+'px';p.style.maxWidth=w+'px';p.style.flex='none';});
+    }
+    rebuildSbar();
+    dragEl=null;
+  }
+}
+
+// ── Delete confirm ──
+function cancelDelete(){
+  $('deleteModal').style.display='none';
+  if(pendingDelPanel){ pendingDelPanel.style.opacity='1'; pendingDelPanel=null; }
+  exitEdit();
+}
+function confirmDelete(){
+  $('deleteModal').style.display='none';
+  const panel=pendingDelPanel; pendingDelPanel=null;
+  if(!panel){ exitEdit(); return; }
+  // MIUI scatter blast
+  panel.classList.remove('panel-wiggle');
+  panel.classList.add('panel-scatter');
+  haptic([30,15,60]);
+  setTimeout(()=>{
+    const pid=panel.id, isSt=pid==='fanPanel'||pid==='lPanel';
+    if(isSt){ panel.remove(); }
+    else{ const devId=pid.replace('panel_',''); devices=devices.filter(d=>d.id!==devId); panel.remove(); const css=document.getElementById('css_'+devId); if(css)css.remove(); }
+    rebalance(); exitEdit();
+  }, 320);
+}
+
+// ══════════════════════════════════
+// INTERACTION — per panel
+// ══════════════════════════════════
+function attachInteraction(panel){
+  let tid=null, dragging=false;
+
+  // ── TOUCH ──
+  panel.addEventListener('touchstart', e=>{
+    if(dragging) return;
+    const t=e.changedTouches[0]; tid=t.identifier;
+    longTimer=setTimeout(()=>{
+      if(!editMode) enterEdit();
+      dragging=true;
+      beginDrag(panel,t.clientX,t.clientY);
+    }, LONG_MS);
+  },{passive:true});
+
+  panel.addEventListener('touchmove', e=>{
+    const t=Array.from(e.changedTouches).find(x=>x.identifier===tid);
+    if(!t) return;
+    if(!dragging){ clearTimeout(longTimer); return; }
+    e.preventDefault();
+    duringDrag(t.clientX, t.clientY);
+  },{passive:false});
+
+  panel.addEventListener('touchend', e=>{
+    clearTimeout(longTimer);
+    if(!dragging){ dragging=false; tid=null; return; }
+    // Get last known position from changedTouches
+    const t=Array.from(e.changedTouches).find(x=>x.identifier===tid)||e.changedTouches[0];
+    dragging=false; tid=null;
+    endDrag(t?t.clientX:0, t?t.clientY:0);
+  },{passive:true});
+
+  panel.addEventListener('touchcancel', ()=>{
+    clearTimeout(longTimer);
+    if(dragging){ dragging=false; destroyGhost(); removePh(); if(dragEl){dragEl.style.opacity='1';dragEl.classList.add('panel-wiggle');dragEl=null;} }
+    tid=null;
+  },{passive:true});
+
+  // ── MOUSE ──
+  panel.addEventListener('mousedown', e=>{
+    if(e.button!==0) return;
+    const sx=e.clientX, sy=e.clientY;
+    longTimer=setTimeout(()=>{
+      if(!editMode) enterEdit();
+      beginDrag(panel, sx, sy);
+    }, LONG_MS);
+  });
+  panel.addEventListener('mouseup', ()=>clearTimeout(longTimer));
+  panel.addEventListener('mouseleave', ()=>clearTimeout(longTimer));
+}
+
+// Global mouse tracking
+document.addEventListener('mousemove', e=>{ if(dragEl) duringDrag(e.clientX,e.clientY); });
+document.addEventListener('mouseup',   e=>{ if(dragEl) endDrag(e.clientX,e.clientY); });
+
+// Tap outside → exit edit
+document.addEventListener('click', e=>{
+  if(!editMode) return;
+  if(!e.target.closest('.d-panel')&&!e.target.closest('#editBar')&&!e.target.closest('#deleteModal')) exitEdit();
+},{capture:false});
+
+// ══════════════════════════════════
+// INIT
+// ══════════════════════════════════
+document.querySelectorAll('#mainContent .d-panel').forEach(p=>attachInteraction(p));
+rebalance();
+
+// ══════════════════════════════════════════════════════════
+// FINGERPRINT AUTHENTICATION  (WebAuthn Platform)
+// ══════════════════════════════════════════════════════════
+
+const FP_CRED_KEY = 'jarvis_fp_credId';
+const FP_SALT_KEY = 'jarvis_fp_salt';
+
+// ── DOM refs ──
+const fpStatus   = () => document.getElementById('fpStatus');
+const fpRingWrap = () => document.getElementById('fpRingWrap');
+const fpAuthBtn  = () => document.getElementById('fpAuthBtn');
+const fpRegBtn   = () => document.getElementById('fpRegBtn');
+const fpReset    = () => document.getElementById('fpReset');
+const lockScreen = () => document.getElementById('lockScreen');
+
+function setFpState(ring, statusText, statusClass, authShow, regShow, resetShow){
+  const rw = fpRingWrap();
+  rw.className = 'fp-ring-wrap' + (ring ? ' '+ring : '');
+  const st = fpStatus();
+  st.textContent = statusText;
+  st.className   = 'lk-status' + (statusClass ? ' '+statusClass : '');
+  fpAuthBtn().style.display  = authShow ? 'block' : 'none';
+  fpRegBtn().style.display   = regShow  ? 'block' : 'none';
+  fpReset().style.display    = resetShow? 'block' : 'none';
+}
+
+// ── Unlock (hide lock screen with animation) ──
+function unlockDashboard(){
+  setFpState('success','ACCESS GRANTED','ok',false,false,false);
+  haptic([40,20,60,20,80]);
+  // Brief success display then slide away
+  setTimeout(()=>{
+    const ls = lockScreen();
+    ls.classList.add('unlock-anim');
+    setTimeout(()=>{ ls.style.display='none'; }, 520);
+  }, 700);
+}
+
+// ── Random bytes helper ──
+function randBytes(n){ return crypto.getRandomValues(new Uint8Array(n)); }
+
+// ── Base64 helpers ──
+function u8ToB64(u8){ return btoa(String.fromCharCode(...u8)); }
+function b64ToU8(b64){ return Uint8Array.from(atob(b64), c=>c.charCodeAt(0)); }
+
+// ── Get rpId safely ──
+// WebAuthn needs HTTPS or localhost. file:// won't work — we guide the user.
+function getRpId(){
+  const h = location.hostname;
+  // Empty = file:// protocol
+  return h || null;
+}
+
+// ── Check WebAuthn support ──
+async function checkSupport(){
+  if(!window.PublicKeyCredential){
+    setFpState('error','WebAuthn NOT SUPPORTED','err',false,false,false);
+    fpStatus().textContent = 'BROWSER NOT SUPPORTED — USE CHROME / SAFARI';
+    return false;
+  }
+  // Check platform authenticator (fingerprint sensor)
+  try{
+    const avail = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if(!avail){
+      setFpState('error','NO BIOMETRIC SENSOR FOUND','err',false,false,false);
+      fpStatus().textContent = 'NO FINGERPRINT SENSOR DETECTED';
+      return false;
+    }
+  } catch(e){}
+  return true;
+}
+
+// ── REGISTER fingerprint (first time) ──
+async function doRegister(){
+  const rpId = getRpId();
+  if(!rpId){
+    setFpState('error','NEEDS HTTPS OR LOCALHOST','err',false,false,false);
+    fpStatus().innerHTML = 'OPEN VIA HTTPS OR RUN:<br><span style="color:#00e5ff88;font-size:.32rem">python3 -m http.server 8080</span>';
+    return;
+  }
+
+  setFpState('scanning','PLACE FINGER ON SENSOR...','',false,false,false);
+
+  // Disable button during scan
+  fpRegBtn().disabled = true;
+
+  const challenge = randBytes(32);
+  const userId    = randBytes(16);
+  // Store userId to reuse
+  localStorage.setItem(FP_SALT_KEY, u8ToB64(userId));
+
+  try {
+    const cred = await navigator.credentials.create({
+      publicKey:{
+        challenge,
+        rp:{ name:'JARVIS Smart Home', id: rpId },
+        user:{ id:userId, name:'jarvis_user', displayName:'JARVIS User' },
+        pubKeyCredParams:[
+          {type:'public-key', alg:-7},    // ES256
+          {type:'public-key', alg:-257},  // RS256
+        ],
+        authenticatorSelection:{
+          authenticatorAttachment:'platform',
+          userVerification:'required',
+          residentKey:'preferred',
+        },
+        timeout:60000,
+        attestation:'none',
+      }
+    });
+    // Save credential ID
+    const credIdB64 = u8ToB64(new Uint8Array(cred.rawId));
+    localStorage.setItem(FP_CRED_KEY, credIdB64);
+
+    // Registered → unlock directly (WebAuthn already verified)
+    unlockDashboard();
+
+  } catch(e){
+    fpRegBtn().disabled = false;
+    if(e.name==='NotAllowedError'){
+      setFpState('error','CANCELLED — TRY AGAIN','err',false,true,false);
+    } else if(e.name==='InvalidStateError'){
+      // Already registered on this device
+      setFpState('error','ALREADY REGISTERED','err',false,false,false);
+      fpStatus().textContent = 'CREDENTIAL EXISTS — USE UNLOCK';
+      setTimeout(()=>initFp(), 1500);
+    } else {
+      setFpState('error','ERROR: '+e.message.toUpperCase().slice(0,36),'err',false,true,false);
+    }
+  }
+}
+
+// ── AUTHENTICATE fingerprint ──
+async function doAuthenticate(){
+  const rpId    = getRpId();
+  const credB64 = localStorage.getItem(FP_CRED_KEY);
+  if(!rpId || !credB64){ initFp(); return; }
+
+  setFpState('scanning','TOUCH FINGERPRINT SENSOR...','',false,false,false);
+  fpAuthBtn().disabled = true;
+
+  const challenge = randBytes(32);
+  const credId    = b64ToU8(credB64);
+
+  try{
+    await navigator.credentials.get({
+      publicKey:{
+        challenge,
+        rpId,
+        allowCredentials:[{ type:'public-key', id:credId }],
+        userVerification:'required',
+        timeout:60000,
+      }
+    });
+    // Auth success
+    unlockDashboard();
+  } catch(e){
+    fpAuthBtn().disabled = false;
+    if(e.name==='NotAllowedError'){
+      setFpState('error','ACCESS DENIED — TRY AGAIN','err',true,false,true);
+    } else if(e.name==='InvalidStateError'||e.name==='UnknownError'){
+      setFpState('error','CREDENTIAL NOT FOUND','err',false,true,true);
+    } else {
+      setFpState('error','ERROR — RETRY','err',true,false,true);
+    }
+  }
+}
+
+// ── RESET registration ──
+function resetAuth(){
+  if(!confirm('Reset fingerprint registration? You will need to re-register.')) return;
+  localStorage.removeItem(FP_CRED_KEY);
+  localStorage.removeItem(FP_SALT_KEY);
+  initFp();
+}
+
+// ── INIT: decide what screen to show ──
+async function initFp(){
+  const ls = lockScreen();
+  ls.style.display = 'flex';
+  ls.classList.remove('unlock-anim');
+
+  // Check protocol
+  const rpId = getRpId();
+  if(!rpId){
+    setFpState('error','','err',false,false,false);
+    fpStatus().innerHTML =
+      '<span style="font-size:.38rem;line-height:1.9;color:#ff4444aa">NEEDS HTTPS OR LOCALHOST</span><br>' +
+      '<span style="font-size:.3rem;color:#00e5ff44;letter-spacing:1px">Run: python3 -m http.server 8080<br>Then open: http://localhost:8080</span>';
+    return;
+  }
+
+  const ok = await checkSupport();
+  if(!ok) return;
+
+  const credStored = localStorage.getItem(FP_CRED_KEY);
+  if(credStored){
+    // Registered → show unlock button
+    setFpState('','FINGERPRINT REGISTERED','',true,false,true);
+    // Auto-trigger after short delay for smooth UX
+    setTimeout(()=>doAuthenticate(), 600);
+  } else {
+    // Not registered → show register button
+    setFpState('','FINGERPRINT NOT REGISTERED','',false,true,false);
+    fpStatus().textContent = 'REGISTER YOUR FINGERPRINT FIRST';
+  }
+}
+
+// ── Start fingerprint system on page load ──
+initFp();
+
+</script>
+</body>
+</html>
