@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S — Home Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00D4FF;
+    --cyan-dim: rgba(0,212,255,0.15);
+    --cyan-glow: rgba(0,212,255,0.5);
+    --red: #FF3B3B;
+    --green: #00FF8C;
+    --bg: #020A10;
+    --panel: rgba(0,20,35,0.85);
+    --border: rgba(0,212,255,0.25);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    font-family: 'Rajdhani', sans-serif;
+    color: var(--cyan);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index:0; animation: gridMove 20s linear infinite;
+  }
+  @keyframes gridMove { from{transform:translateY(0)} to{transform:translateY(40px)} }
+  .scan-line {
+    position:fixed; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity:0.3; animation: scanDown 5s linear infinite; z-index:999; pointer-events:none;
+  }
+  @keyframes scanDown { from{top:0} to{top:100%} }
+
+  /* ===================== LOGIN PAGE ===================== */
+  #loginPage {
+    position:fixed; inset:0; z-index:100;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--bg);
+  }
+  #loginPage::before {
+    content:''; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size:40px 40px; animation:gridMove 20s linear infinite;
+  }
+  .login-box {
+    position:relative; z-index:1;
+    width:100%; max-width:380px; margin:16px;
+    background: rgba(0,15,25,0.95);
+    border:1px solid var(--border);
+    border-radius:16px; padding:32px 28px;
+    box-shadow: 0 0 60px rgba(0,212,255,0.1);
+    animation: fadeInUp 0.5s ease;
+  }
+  @keyframes fadeInUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Corner decorations */
+  .login-box::before, .login-box::after {
+    content:''; position:absolute; width:16px; height:16px;
+  }
+  .login-box::before { top:0; left:0; border-top:2px solid var(--cyan); border-left:2px solid var(--cyan); border-radius:4px 0 0 0; }
+  .login-box::after  { bottom:0; right:0; border-bottom:2px solid var(--cyan); border-right:2px solid var(--cyan); border-radius:0 0 4px 0; }
+
+  .login-logo {
+    text-align:center; margin-bottom:28px;
+  }
+  .login-logo h1 {
+    font-family:'Orbitron',monospace; font-size:26px; font-weight:900;
+    letter-spacing:6px; color:#fff; text-shadow:0 0 30px var(--cyan-glow);
+  }
+  .login-logo p {
+    font-family:'Orbitron',monospace; font-size:8px;
+    letter-spacing:4px; color:rgba(0,212,255,0.4); margin-top:6px;
+  }
+  .login-logo .ring {
+    width:70px; height:70px; border-radius:50%;
+    border:2px solid var(--border); margin:0 auto 16px;
+    display:flex; align-items:center; justify-content:center;
+    position:relative; animation:rotateSvg 8s linear infinite;
+  }
+  .login-logo .ring::before {
+    content:''; position:absolute; inset:6px; border-radius:50%;
+    border:1px solid rgba(0,212,255,0.2);
+  }
+  .login-logo .ring-dot {
+    width:10px; height:10px; border-radius:50%;
+    background:var(--cyan); box-shadow:0 0 15px var(--cyan-glow);
+    animation:rotateSvg 8s linear infinite reverse;
+  }
+  @keyframes rotateSvg { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+  /* Tabs */
+  .auth-tabs { display:flex; margin-bottom:24px; border-bottom:1px solid var(--border); }
+  .auth-tab {
+    flex:1; padding:10px; border:none; background:transparent;
+    font-family:'Orbitron',monospace; font-size:10px; letter-spacing:2px;
+    color:rgba(0,212,255,0.4); cursor:pointer; transition:all 0.3s;
+    position:relative;
+  }
+  .auth-tab.active { color:var(--cyan); }
+  .auth-tab.active::after {
+    content:''; position:absolute; bottom:-1px; left:0; right:0;
+    height:2px; background:var(--cyan); box-shadow:0 0 8px var(--cyan-glow);
+  }
+
+  /* Form */
+  .auth-form { display:flex; flex-direction:column; gap:14px; }
+  .form-group { position:relative; }
+  .form-label {
+    font-family:'Orbitron',monospace; font-size:8px; letter-spacing:3px;
+    color:rgba(0,212,255,0.5); display:block; margin-bottom:6px;
+  }
+  .form-input {
+    width:100%; padding:12px 14px; background:rgba(0,212,255,0.05);
+    border:1px solid var(--border); border-radius:8px;
+    color:#fff; font-family:'Rajdhani',sans-serif; font-size:15px;
+    outline:none; transition:all 0.3s;
+  }
+  .form-input:focus { border-color:var(--cyan); box-shadow:0 0 15px rgba(0,212,255,0.1); }
+  .form-input::placeholder { color:rgba(255,255,255,0.2); }
+
+  .btn-primary {
+    width:100%; padding:14px; background:rgba(0,212,255,0.15);
+    border:1px solid var(--cyan); border-radius:8px;
+    color:var(--cyan); font-family:'Orbitron',monospace; font-size:11px;
+    letter-spacing:3px; cursor:pointer; transition:all 0.3s;
+    box-shadow:0 0 20px rgba(0,212,255,0.1);
+  }
+  .btn-primary:hover { background:rgba(0,212,255,0.25); box-shadow:0 0 30px rgba(0,212,255,0.2); }
+  .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+
+  .divider {
+    display:flex; align-items:center; gap:12px; margin:4px 0;
+  }
+  .divider::before, .divider::after {
+    content:''; flex:1; height:1px; background:var(--border);
+  }
+  .divider span { font-size:10px; color:rgba(0,212,255,0.3); letter-spacing:2px; font-family:'Orbitron',monospace; }
+
+  .btn-google {
+    width:100%; padding:13px; background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.15); border-radius:8px;
+    color:#fff; font-family:'Rajdhani',sans-serif; font-size:15px;
+    cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn-google:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.3); }
+  .btn-google svg { width:18px; height:18px; }
+
+  .error-msg {
+    background:rgba(255,60,60,0.1); border:1px solid rgba(255,60,60,0.3);
+    border-radius:8px; padding:10px 14px;
+    color:#ff5252; font-size:13px; letter-spacing:1px; display:none;
+  }
+  .error-msg.show { display:block; }
+  .success-msg {
+    background:rgba(0,255,140,0.1); border:1px solid rgba(0,255,140,0.3);
+    border-radius:8px; padding:10px 14px;
+    color:var(--green); font-size:13px; letter-spacing:1px; display:none;
+  }
+  .success-msg.show { display:block; }
+
+  /* Loading spinner */
+  .spinner {
+    width:16px; height:16px; border:2px solid rgba(0,212,255,0.3);
+    border-top-color:var(--cyan); border-radius:50%;
+    animation:spin 0.8s linear infinite; display:inline-block; margin-right:8px;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* ===================== MAIN APP ===================== */
+  #mainApp { display:none; }
+  .app {
+    position:relative; z-index:1; max-width:480px; margin:0 auto;
+    min-height:100vh; display:flex; flex-direction:column; padding-bottom:70px;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 16px; font-family:'Orbitron',monospace; font-size:9px;
+    color:rgba(0,212,255,0.5); letter-spacing:2px;
+  }
+  .status-dot {
+    display:inline-block; width:6px; height:6px; background:var(--green);
+    border-radius:50%; box-shadow:0 0 6px var(--green);
+    animation:pulse 1.5s ease-in-out infinite; margin-right:5px;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* HEADER */
+  .header { padding:10px 16px 16px; border-bottom:1px solid var(--border); position:relative; }
+  .header::after {
+    content:''; position:absolute; bottom:-1px; left:16px;
+    width:80px; height:2px; background:var(--cyan); box-shadow:0 0 12px var(--cyan-glow);
+  }
+  .header-top { display:flex; justify-content:space-between; align-items:flex-start; }
+  .header h1 { font-family:'Orbitron',monospace; font-size:20px; font-weight:900; letter-spacing:4px; text-shadow:0 0 20px var(--cyan-glow); line-height:1; }
+  .header .sub { font-size:10px; color:rgba(0,212,255,0.5); letter-spacing:3px; margin-top:4px; font-family:'Orbitron',monospace; }
+  .header-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .user-info { font-family:'Orbitron',monospace; font-size:8px; color:rgba(0,212,255,0.5); letter-spacing:1px; text-align:right; }
+  .logout-btn {
+    padding:4px 10px; border:1px solid rgba(255,60,60,0.4); border-radius:4px;
+    background:rgba(255,60,60,0.1); color:#ff5252; font-family:'Orbitron',monospace;
+    font-size:7px; letter-spacing:2px; cursor:pointer; transition:all 0.3s;
+  }
+  .logout-btn:hover { background:rgba(255,60,60,0.2); }
+  .ai-status { margin-top:10px; display:flex; align-items:center; gap:10px; }
+  .ai-bar { flex:1; height:3px; background:rgba(0,212,255,0.1); border-radius:2px; overflow:hidden; }
+  .ai-bar-fill { height:100%; background:linear-gradient(90deg, var(--cyan), var(--green)); border-radius:2px; animation:scanBar 2s ease-in-out infinite; }
+  @keyframes scanBar { 0%{width:20%;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:20%;margin-left:80%} }
+  .ai-label { font-family:'Orbitron',monospace; font-size:8px; color:var(--green); letter-spacing:2px; white-space:nowrap; }
+
+  /* TAB BAR */
+  .tab-bar { display:flex; background:#0a1520; border-bottom:1px solid var(--border); }
+  .tab-btn {
+    flex:1; padding:10px; border:none; background:transparent; cursor:pointer;
+    font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px;
+    color:rgba(0,212,255,0.4); transition:all 0.3s; position:relative;
+  }
+  .tab-btn.active { color:var(--cyan); }
+  .tab-btn.active::after { content:''; position:absolute; bottom:0; left:20%; right:20%; height:2px; background:var(--cyan); box-shadow:0 0 8px var(--cyan-glow); }
+
+  /* TAB CONTENT */
+  .tab-content { display:none; }
+  .tab-content.active { display:flex; flex-direction:column; }
+  .content { flex:1; padding:14px; display:flex; flex-direction:column; gap:14px; }
+
+  /* SECTION LABEL */
+  .section-label {
+    font-family:'Orbitron',monospace; font-size:9px; letter-spacing:4px;
+    color:rgba(0,212,255,0.4); margin-bottom:8px; display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg, var(--border), transparent); }
+
+  /* CENTRAL DISPLAY */
+  .central-display {
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:18px; display:flex; align-items:center; gap:18px; position:relative; overflow:hidden;
+  }
+  .central-display::before { content:''; position:absolute; top:-30px; right:-30px; width:120px; height:120px; border:1px solid var(--border); border-radius:50%; }
+  .ring-container { position:relative; width:86px; height:86px; flex-shrink:0; }
+  .ring-container svg { position:absolute; inset:0; animation:rotateSvg 8s linear infinite; }
+  .ring-inner { position:absolute; inset:15px; background:radial-gradient(circle, rgba(0,212,255,0.15), transparent); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+  .ring-temp { font-family:'Orbitron',monospace; font-size:17px; font-weight:900; color:#fff; text-shadow:0 0 15px var(--cyan-glow); line-height:1; }
+  .ring-unit { font-size:9px; color:var(--cyan); letter-spacing:1px; }
+  .display-info { flex:1; }
+  .display-info h2 { font-family:'Orbitron',monospace; font-size:12px; font-weight:700; color:#fff; letter-spacing:2px; margin-bottom:5px; }
+  .display-info p { font-size:11px; color:rgba(255,255,255,0.4); line-height:1.6; letter-spacing:1px; }
+  .display-stats { display:flex; gap:14px; margin-top:10px; }
+  .stat-item .val { font-family:'Orbitron',monospace; font-size:13px; font-weight:700; color:var(--green); }
+  .stat-item .key { font-size:8px; color:rgba(0,212,255,0.4); letter-spacing:2px; margin-top:2px; }
+
+  /* ROOM GRID */
+  .room-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .room-card {
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:13px; cursor:pointer; transition:all 0.3s; position:relative; overflow:hidden;
+  }
+  .room-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, var(--cyan), transparent); transform:scaleX(0); transition:transform 0.3s; }
+  .room-card.selected::before, .room-card:hover::before { transform:scaleX(1); }
+  .room-card.selected, .room-card:hover { border-color:var(--cyan); box-shadow:0 0 20px rgba(0,212,255,0.15), inset 0 0 20px rgba(0,212,255,0.05); transform:translateY(-2px); }
+  .room-icon { font-size:20px; margin-bottom:6px; display:block; }
+  .room-name { font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px; color:#fff; margin-bottom:3px; }
+  .room-devices { font-size:11px; color:rgba(0,212,255,0.4); letter-spacing:1px; }
+  .room-status { position:absolute; top:11px; right:11px; width:8px; height:8px; border-radius:50%; }
+  .room-status.on { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 2s infinite; }
+  .room-status.off { background:#444; }
+
+  /* DEVICE LIST */
+  .device-list { display:flex; flex-direction:column; gap:8px; }
+  .device-item {
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px; transition:all 0.3s;
+  }
+  .device-item:hover { border-color:rgba(0,212,255,0.5); }
+  .device-icon { font-size:18px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; background:rgba(0,212,255,0.08); border-radius:8px; border:1px solid var(--border); flex-shrink:0; }
+  .device-info { flex:1; cursor:pointer; }
+  .device-name { font-family:'Orbitron',monospace; font-size:10px; color:#fff; letter-spacing:1px; margin-bottom:3px; }
+  .device-detail { font-size:11px; color:rgba(0,212,255,0.4); letter-spacing:1px; }
+
+  /* TOGGLE */
+  .toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
+  .toggle input { display:none; }
+  .toggle-track { position:absolute; inset:0; border-radius:12px; background:#1a1a2e; border:1px solid #333; cursor:pointer; transition:all 0.3s; }
+  .toggle input:checked + .toggle-track { background:rgba(0,212,255,0.2); border-color:var(--cyan); box-shadow:0 0 10px rgba(0,212,255,0.3); }
+  .toggle-track::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#444; transition:all 0.3s; }
+  .toggle input:checked + .toggle-track::after { transform:translateX(20px); background:var(--cyan); box-shadow:0 0 8px var(--cyan-glow); }
+
+  /* MODAL */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:500; align-items:flex-end; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:#0d1f2d; border:1px solid var(--border); border-radius:16px 16px 0 0; padding:20px; width:100%; max-width:480px; animation:slideUp 0.3s ease; max-height:80vh; overflow-y:auto; }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-handle { width:40px; height:4px; background:rgba(0,212,255,0.3); border-radius:2px; margin:0 auto 16px; }
+  .modal-title { font-family:'Orbitron',monospace; font-size:14px; color:#fff; letter-spacing:3px; margin-bottom:4px; }
+  .modal-room { font-size:10px; color:rgba(0,212,255,0.4); letter-spacing:2px; margin-bottom:20px; }
+  .setting-group { margin-bottom:20px; }
+  .setting-label { font-family:'Orbitron',monospace; font-size:9px; letter-spacing:3px; color:rgba(0,212,255,0.5); margin-bottom:10px; display:block; }
+  .speed-btns { display:flex; gap:8px; }
+  .speed-btn { flex:1; padding:12px; border:1px solid var(--border); border-radius:8px; background:transparent; color:rgba(0,212,255,0.5); font-family:'Orbitron',monospace; font-size:14px; cursor:pointer; transition:all 0.3s; }
+  .speed-btn.active { border-color:var(--cyan); background:rgba(0,212,255,0.15); color:var(--cyan); box-shadow:0 0 12px rgba(0,212,255,0.2); }
+  .temp-display { font-family:'Orbitron',monospace; font-size:36px; font-weight:900; color:var(--cyan); text-align:center; text-shadow:0 0 20px var(--cyan-glow); margin-bottom:14px; }
+  .temp-controls { display:flex; gap:10px; }
+  .temp-btn { flex:1; padding:14px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--cyan); font-size:22px; cursor:pointer; transition:all 0.3s; }
+  .temp-btn:hover { background:rgba(0,212,255,0.1); border-color:var(--cyan); }
+  .color-btns { display:flex; gap:8px; flex-wrap:wrap; }
+  .color-btn { width:36px; height:36px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:all 0.3s; }
+  .color-btn.active { border-color:#fff; transform:scale(1.2); }
+  .slider-row { display:flex; align-items:center; gap:12px; }
+  .slider-row span { font-family:'Orbitron',monospace; font-size:12px; color:var(--cyan); width:40px; text-align:right; }
+  input[type=range] { flex:1; -webkit-appearance:none; height:4px; border-radius:2px; background:rgba(0,212,255,0.2); outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan-glow); cursor:pointer; }
+  .mode-btns { display:flex; gap:8px; flex-wrap:wrap; }
+  .mode-btn { padding:8px 14px; border:1px solid var(--border); border-radius:20px; background:transparent; color:rgba(0,212,255,0.5); font-family:'Orbitron',monospace; font-size:9px; letter-spacing:1px; cursor:pointer; transition:all 0.3s; }
+  .mode-btn.active { border-color:var(--cyan); background:rgba(0,212,255,0.15); color:var(--cyan); }
+  .modal-close { width:100%; padding:14px; border:1px solid var(--border); border-radius:10px; background:transparent; color:rgba(0,212,255,0.5); font-family:'Orbitron',monospace; font-size:10px; letter-spacing:3px; cursor:pointer; margin-top:8px; transition:all 0.3s; }
+  .modal-close:hover { border-color:var(--cyan); color:var(--cyan); }
+
+  /* MANAGE TAB */
+  .manage-content { padding:14px; display:flex; flex-direction:column; gap:14px; }
+  .manage-card { background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .manage-card-header { padding:12px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); }
+  .manage-card-title { font-family:'Orbitron',monospace; font-size:11px; color:#fff; letter-spacing:2px; display:flex; align-items:center; gap:8px; }
+  .manage-card-body { padding:10px; }
+  .manage-row { display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; background:rgba(0,212,255,0.03); }
+  .manage-row-icon { font-size:18px; }
+  .manage-row-name { flex:1; font-family:'Orbitron',monospace; font-size:10px; color:#fff; letter-spacing:1px; }
+  .manage-row-detail { font-size:10px; color:rgba(0,212,255,0.4); }
+  .del-btn { width:28px; height:28px; border-radius:6px; border:1px solid rgba(255,60,60,0.3); background:rgba(255,60,60,0.1); color:#ff5252; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; transition:all 0.3s; flex-shrink:0; }
+  .del-btn:hover { background:rgba(255,60,60,0.2); border-color:#ff5252; }
+  .add-btn { width:100%; padding:11px; border:1px dashed rgba(0,212,255,0.3); border-radius:8px; background:transparent; color:rgba(0,212,255,0.5); font-family:'Orbitron',monospace; font-size:10px; letter-spacing:2px; cursor:pointer; transition:all 0.3s; margin-top:4px; }
+  .add-btn:hover { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,0.05); }
+  .mini-form { padding:10px; border-top:1px solid var(--border); display:none; flex-direction:column; gap:8px; }
+  .mini-form.open { display:flex; }
+  .mini-input { padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:rgba(0,212,255,0.05); color:#fff; font-family:'Rajdhani',sans-serif; font-size:14px; outline:none; width:100%; }
+  .mini-input:focus { border-color:var(--cyan); }
+  .mini-select { padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:#0d1f2d; color:#fff; font-family:'Rajdhani',sans-serif; font-size:14px; outline:none; width:100%; }
+  .mini-submit { padding:10px; border:1px solid var(--cyan); border-radius:8px; background:rgba(0,212,255,0.1); color:var(--cyan); font-family:'Orbitron',monospace; font-size:10px; letter-spacing:2px; cursor:pointer; transition:all 0.3s; }
+  .mini-submit:hover { background:rgba(0,212,255,0.2); }
+
+  /* ENERGY */
+  .energy-panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; }
+  .energy-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .energy-title { font-family:'Orbitron',monospace; font-size:10px; letter-spacing:3px; color:rgba(0,212,255,0.6); }
+  .energy-value { font-family:'Orbitron',monospace; font-size:16px; font-weight:700; color:var(--green); text-shadow:0 0 10px var(--green); }
+  .energy-bars { display:flex; gap:4px; align-items:flex-end; height:50px; }
+  .energy-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; height:100%; justify-content:flex-end; }
+  .energy-bar-fill { width:100%; border-radius:3px 3px 0 0; background:linear-gradient(180deg, var(--cyan), rgba(0,212,255,0.3)); box-shadow:0 0 8px rgba(0,212,255,0.3); }
+  .energy-bar-label { font-size:8px; color:rgba(0,212,255,0.3); font-family:'Orbitron',monospace; }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:rgba(2,10,16,0.97); border-top:1px solid var(--border); display:flex; backdrop-filter:blur(20px); z-index:100; }
+  .nav-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px; gap:4px; cursor:pointer; transition:all 0.3s; position:relative; }
+  .nav-item.active::before { content:''; position:absolute; top:0; left:20%; right:20%; height:2px; background:var(--cyan); box-shadow:0 0 8px var(--cyan-glow); border-radius:0 0 4px 4px; }
+  .nav-icon { font-size:18px; }
+  .nav-label { font-family:'Orbitron',monospace; font-size:7px; letter-spacing:2px; color:rgba(0,212,255,0.4); }
+  .nav-item.active .nav-label { color:var(--cyan); text-shadow:0 0 8px var(--cyan-glow); }
+
+  /* LOADING */
+  .loading-screen { position:fixed; inset:0; z-index:200; background:var(--bg); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
+  .loading-screen.hide { display:none; }
+  .loading-text { font-family:'Orbitron',monospace; font-size:10px; letter-spacing:4px; color:rgba(0,212,255,0.6); animation:pulse 1.5s infinite; }
+
+  .empty-state { text-align:center; padding:30px; color:rgba(0,212,255,0.3); font-family:'Orbitron',monospace; font-size:10px; letter-spacing:2px; }
+  .empty-icon { font-size:32px; margin-bottom:10px; }
+
+  /* Cloud sync indicator */
+  .sync-indicator { font-family:'Orbitron',monospace; font-size:8px; color:var(--green); letter-spacing:2px; display:flex; align-items:center; gap:5px; }
+  .sync-dot { width:5px; height:5px; border-radius:50%; background:var(--green); box-shadow:0 0 5px var(--green); animation:pulse 1s infinite; }
+</style>
+</head>
+<body>
+
+<div class="scan-line"></div>
+
+<!-- LOADING SCREEN -->
+<div class="loading-screen" id="loadingScreen">
+  <div style="font-family:'Orbitron',monospace;font-size:24px;font-weight:900;letter-spacing:6px;color:#fff;text-shadow:0 0 30px rgba(0,212,255,0.8)">J.A.R.V.I.S</div>
+  <div style="display:flex;gap:6px">
+    <div class="spinner"></div>
+  </div>
+  <div class="loading-text">INITIALIZING SYSTEM...</div>
+</div>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div id="loginPage" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="ring"><div class="ring-dot"></div></div>
+      <h1>J.A.R.V.I.S</h1>
+      <p>HOME CONTROL SYSTEM</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">LOGIN</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">SIGN UP</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="loginForm" class="auth-form">
+      <div class="error-msg" id="loginError"></div>
+      <div class="form-group">
+        <label class="form-label">EMAIL ADDRESS</label>
+        <input type="email" class="form-input" id="loginEmail" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">PASSWORD</label>
+        <input type="password" class="form-input" id="loginPassword" placeholder="••••••••">
+      </div>
+      <button class="btn-primary" id="loginBtn" onclick="loginWithEmail()">
+        AUTHENTICATE
+      </button>
+      <div class="divider"><span>OR</span></div>
+      <button class="btn-google" onclick="loginWithGoogle()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="signupForm" class="auth-form" style="display:none">
+      <div class="error-msg" id="signupError"></div>
+      <div class="success-msg" id="signupSuccess"></div>
+      <div class="form-group">
+        <label class="form-label">FULL NAME</label>
+        <input type="text" class="form-input" id="signupName" placeholder="Tony Stark">
+      </div>
+      <div class="form-group">
+        <label class="form-label">EMAIL ADDRESS</label>
+        <input type="email" class="form-input" id="signupEmail" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">PASSWORD</label>
+        <input type="password" class="form-input" id="signupPassword" placeholder="Min 6 characters">
+      </div>
+      <button class="btn-primary" id="signupBtn" onclick="signupWithEmail()">
+        CREATE ACCOUNT
+      </button>
+      <div class="divider"><span>OR</span></div>
+      <button class="btn-google" onclick="loginWithGoogle()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="mainApp">
+<div class="app">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span><span class="status-dot"></span>SYSTEM ONLINE</span>
+    <span class="sync-indicator"><span class="sync-dot"></span>CLOUD SYNC</span>
+    <span id="clock">--:--:--</span>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div><h1>J.A.R.V.I.S</h1><div class="sub">HOME CONTROL</div></div>
+      <div class="header-right">
+        <div class="user-info" id="userEmail">--</div>
+        <button class="logout-btn" onclick="logoutUser()">LOGOUT</button>
+      </div>
+    </div>
+    <div class="ai-status">
+      <div class="ai-label">AI ACTIVE</div>
+      <div class="ai-bar"><div class="ai-bar-fill"></div></div>
+      <div class="ai-label">SCANNING</div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('home')">HOME</button>
+    <button class="tab-btn" onclick="switchTab('devices')">DEVICES</button>
+    <button class="tab-btn" onclick="switchTab('energy')">ENERGY</button>
+  </div>
+
+  <!-- HOME TAB -->
+  <div id="tab-home" class="tab-content active">
+    <div class="content">
+      <div>
+        <div class="section-label">SYSTEM STATUS</div>
+        <div class="central-display">
+          <div class="ring-container">
+            <svg viewBox="0 0 90 90" width="86" height="86">
+              <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(0,212,255,0.1)" stroke-width="1"/>
+              <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(0,212,255,0.6)" stroke-width="1.5" stroke-dasharray="60 200" stroke-linecap="round"/>
+              <circle cx="45" cy="45" r="33" fill="none" stroke="rgba(0,212,255,0.15)" stroke-width="1" stroke-dasharray="8 6"/>
+            </svg>
+            <div class="ring-inner">
+              <div class="ring-temp">24°</div>
+              <div class="ring-unit">INDOOR</div>
+            </div>
+          </div>
+          <div class="display-info">
+            <h2 id="statusText">LOADING...</h2>
+            <p id="statusSub">Connecting to cloud...</p>
+            <div class="display-stats">
+              <div class="stat-item"><div class="val">62%</div><div class="key">HUMIDITY</div></div>
+              <div class="stat-item"><div class="val" id="totalPower">0kW</div><div class="key">POWER</div></div>
+              <div class="stat-item"><div class="val">SAFE</div><div class="key">SECURITY</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">SECTORS</div>
+        <div class="room-grid" id="roomGrid"></div>
+      </div>
+
+      <div id="roomDevicesSection" style="display:none">
+        <div class="section-label" id="roomDevicesLabel">DEVICES</div>
+        <div class="device-list" id="roomDeviceList"></div>
+      </div>
+
+      <div>
+        <div class="section-label">ENERGY MONITOR</div>
+        <div class="energy-panel">
+          <div class="energy-header">
+            <div class="energy-title">TODAY'S USAGE</div>
+            <div class="energy-value">12.4 kWh</div>
+          </div>
+          <div class="energy-bars">
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:40%"></div><div class="energy-bar-label">6A</div></div>
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:25%"></div><div class="energy-bar-label">8A</div></div>
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:55%"></div><div class="energy-bar-label">10A</div></div>
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:70%"></div><div class="energy-bar-label">12P</div></div>
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:45%"></div><div class="energy-bar-label">2P</div></div>
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:80%"></div><div class="energy-bar-label">4P</div></div>
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:90%"></div><div class="energy-bar-label">6P</div></div>
+            <div class="energy-bar-col"><div class="energy-bar-fill" style="height:60%"></div><div class="energy-bar-label">8P</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEVICES TAB -->
+  <div id="tab-devices" class="tab-content">
+    <div class="manage-content" id="manageContent"></div>
+  </div>
+
+  <!-- ENERGY TAB -->
+  <div id="tab-energy" class="tab-content">
+    <div class="content">
+      <div class="section-label">ENERGY MONITOR</div>
+      <div class="energy-panel">
+        <div class="energy-header">
+          <div class="energy-title">TODAY'S USAGE</div>
+          <div class="energy-value">12.4 kWh</div>
+        </div>
+        <div class="energy-bars">
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:40%"></div><div class="energy-bar-label">6A</div></div>
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:25%"></div><div class="energy-bar-label">8A</div></div>
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:55%"></div><div class="energy-bar-label">10A</div></div>
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:70%"></div><div class="energy-bar-label">12P</div></div>
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:45%"></div><div class="energy-bar-label">2P</div></div>
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:80%"></div><div class="energy-bar-label">4P</div></div>
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:90%"></div><div class="energy-bar-label">6P</div></div>
+          <div class="energy-bar-col"><div class="energy-bar-fill" style="height:60%"></div><div class="energy-bar-label">8P</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home');setNav(this)">
+      <div class="nav-icon">⌂</div><div class="nav-label">HOME</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('devices');setNav(this)">
+      <div class="nav-icon">⚙</div><div class="nav-label">DEVICES</div>
+    </div>
+    <div class="nav-item" onclick="switchTab('energy');setNav(this)">
+      <div class="nav-icon">⚡</div><div class="nav-label">ENERGY</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DEVICE SETTINGS MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modalContent">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-room" id="modalRoom"></div>
+    <div id="modalBody"></div>
+    <button class="modal-close" onclick="closeModalDirect()">CLOSE</button>
+  </div>
+</div>
+
+<!-- ==================== FIREBASE SDK ==================== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBbiEfqBvWHLJZPbqtVHe82nKcCrm-1hmw",
+  authDomain: "jarvis-home-2d2d7.firebaseapp.com",
+  projectId: "jarvis-home-2d2d7",
+  storageBucket: "jarvis-home-2d2d7.firebasestorage.app",
+  messagingSenderId: "421154457066",
+  appId: "1:421154457066:web:28ceaa93cc7977e5a89e93"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+// ===== STATE =====
+let currentUser = null;
+let selectedRoom = null;
+let rooms = [];
+let devices = [];
+let unsubRooms = null;
+let unsubDevices = null;
+
+const deviceTypes = [
+  { value: 'lights', label: '💡 Smart Lights' },
+  { value: 'fan',    label: '🌀 Fan' },
+  { value: 'ac',     label: '❄️ AC' },
+  { value: 'tv',     label: '📺 TV' },
+  { value: 'geyser', label: '🔥 Geyser' },
+  { value: 'lock',   label: '🔒 Lock' },
+];
+
+// ===== UI HELPERS =====
+function showApp(user) {
+  document.getElementById('loadingScreen').classList.add('hide');
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('userEmail').textContent = user.displayName || user.email;
+}
+
+function showLoginPage() {
+  document.getElementById('loadingScreen').classList.add('hide');
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+}
+
+function showError(elId, msg) {
+  const el = document.getElementById(elId);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function hideError(elId) {
+  document.getElementById(elId).classList.remove('show');
+}
+
+function getAuthErrorMsg(code) {
+  const msgs = {
+    'auth/invalid-credential':      'Email ya password galat hai!',
+    'auth/user-not-found':          'Yeh email registered nahi hai!',
+    'auth/wrong-password':          'Password galat hai!',
+    'auth/invalid-email':           'Email format sahi nahi!',
+    'auth/user-disabled':           'Yeh account disable hai.',
+    'auth/too-many-requests':       'Zyada attempts! Thodi der baad try karo.',
+    'auth/network-request-failed':  'Internet connection check karo.',
+    'auth/email-already-in-use':    'Yeh email already registered hai!',
+    'auth/weak-password':           'Password minimum 6 characters chahiye!',
+    'auth/popup-blocked':           'Popup block ho gaya! Browser mein popup allow karo.',
+    'auth/unauthorized-domain':     'Domain authorized nahi. Firebase Console → Auth → Authorized Domains mein add karo.',
+  };
+  return msgs[code] || ('Error: ' + (code || 'Unknown'));
+}
+
+// ===== LOADING FALLBACK — agar 5 sec mein Firebase respond na kare =====
+const loadingFallback = setTimeout(showLoginPage, 5000);
+
+// ===== AUTH STATE LISTENER — yahi ek jagah redirect hoga =====
+onAuthStateChanged(auth, (user) => {
+  clearTimeout(loadingFallback);
+  if (user) {
+    currentUser = user;
+    showApp(user);
+    // Pehle purane listeners band karo, phir naye shuru karo
+    stopListeners();
+    startListeners();
+  } else {
+    currentUser = null;
+    stopListeners();
+    showLoginPage();
+  }
+});
+
+// ===== FIRESTORE LISTENERS =====
+function startListeners() {
+  if (!currentUser) return;
+  const uid = currentUser.uid;
+
+  unsubRooms = onSnapshot(collection(db, 'users', uid, 'rooms'), snap => {
+    rooms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderRooms();
+    updateStatus();
+    if (document.getElementById('tab-devices').classList.contains('active')) renderManage();
+  }, err => console.error('Rooms listener error:', err));
+
+  unsubDevices = onSnapshot(collection(db, 'users', uid, 'devices'), snap => {
+    devices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderRooms();
+    renderRoomDevices();
+    updateStatus();
+    if (document.getElementById('tab-devices').classList.contains('active')) renderManage();
+  }, err => console.error('Devices listener error:', err));
+}
+
+function stopListeners() {
+  if (unsubRooms)   { unsubRooms();   unsubRooms = null; }
+  if (unsubDevices) { unsubDevices(); unsubDevices = null; }
+  rooms = []; devices = [];
+}
+
+// ===== FIRESTORE HELPERS =====
+function userRef(path) {
+  return doc(db, 'users', currentUser.uid, ...path.split('/'));
+}
+
+async function saveRoom(room)   { await setDoc(userRef('rooms/' + room.id), room); }
+async function saveDevice(dev)  { await setDoc(userRef('devices/' + dev.id), dev); }
+async function deleteDevice(id) { await deleteDoc(userRef('devices/' + id)); }
+async function updateDevice(id, data) { await updateDoc(userRef('devices/' + id), data); }
+async function deleteRoom(id) {
+  await deleteDoc(userRef('rooms/' + id));
+  for (const d of devices.filter(d => d.roomId === id)) await deleteDevice(d.id);
+}
+
+function getRoomDevices(roomId) { return devices.filter(d => d.roomId === roomId); }
+function getOnDevices(roomId)   { return getRoomDevices(roomId).filter(d => d.on); }
+function totalOnDevices()       { return devices.filter(d => d.on).length; }
+function genId()                { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ===== AUTH FUNCTIONS =====
+window.loginWithEmail = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value;
+  const btn   = document.getElementById('loginBtn');
+  hideError('loginError');
+
+  if (!email || !pass) { showError('loginError', 'Email aur password dono required!'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>AUTHENTICATING...';
+
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    // onAuthStateChanged khud showApp() karega — yahan kuch nahi karna
+  } catch(e) {
+    showError('loginError', getAuthErrorMsg(e.code));
+    btn.disabled = false;
+    btn.innerHTML = 'AUTHENTICATE';
+  }
+};
+
+window.signupWithEmail = async function() {
+  const name  = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass  = document.getElementById('signupPassword').value;
+  const btn   = document.getElementById('signupBtn');
+  hideError('signupError');
+  document.getElementById('signupSuccess').classList.remove('show');
+
+  if (!name || !email || !pass) { showError('signupError', 'Sare fields required!'); return; }
+  if (pass.length < 6)          { showError('signupError', 'Password minimum 6 characters!'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>CREATING...';
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    // updateProfile alag try mein — fail ho toh bhi account ban gaya
+    try { await updateProfile(cred.user, { displayName: name }); } catch(_) {}
+    // onAuthStateChanged khud showApp() karega
+  } catch(e) {
+    showError('signupError', getAuthErrorMsg(e.code));
+    btn.disabled = false;
+    btn.innerHTML = 'CREATE ACCOUNT';
+  }
+};
+
+window.loginWithGoogle = async function() {
+  // Kaunsa form active hai us mein error dikha
+  const errId = document.getElementById('loginForm').style.display !== 'none'
+    ? 'loginError' : 'signupError';
+  hideError(errId);
+
+  try {
+    await signInWithPopup(auth, googleProvider);
+    // onAuthStateChanged khud showApp() karega
+  } catch(e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+      return; // User ne khud band kiya — koi error nahi
+    }
+    showError(errId, getAuthErrorMsg(e.code));
+  }
+};
+
+window.logoutUser = async function() {
+  if (confirm('Logout karna chahte ho?')) await signOut(auth);
+};
+
+// ===== AUTH TABS =====
+window.switchAuthTab = function(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'signup'));
+  });
+  document.getElementById('loginForm').style.display  = tab === 'login'  ? 'flex' : 'none';
+  document.getElementById('signupForm').style.display = tab === 'signup' ? 'flex' : 'none';
+};
+
+// ===== RENDER ROOMS =====
+function renderRooms() {
+  const grid = document.getElementById('roomGrid');
+  grid.innerHTML = '';
+  if (rooms.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🏠</div>NO ROOMS YET<br><br>Go to DEVICES tab to add rooms</div>';
+    return;
+  }
+  rooms.forEach(room => {
+    const onCount = getOnDevices(room.id).length;
+    const card = document.createElement('div');
+    card.className = 'room-card' + (selectedRoom === room.id ? ' selected' : '');
+    card.innerHTML = `
+      <div class="room-status ${onCount > 0 ? 'on' : 'off'}"></div>
+      <span class="room-icon">${room.icon}</span>
+      <div class="room-name">${room.name}</div>
+      <div class="room-devices">${onCount > 0 ? onCount + ' device' + (onCount > 1 ? 's' : '') + ' on' : 'All offline'}</div>
+    `;
+    card.onclick = () => selectRoom(room.id);
+    grid.appendChild(card);
+  });
+}
+
+function selectRoom(roomId) {
+  selectedRoom = roomId;
+  renderRooms();
+  renderRoomDevices();
+}
+
+function renderRoomDevices() {
+  const section = document.getElementById('roomDevicesSection');
+  const label   = document.getElementById('roomDevicesLabel');
+  const list    = document.getElementById('roomDeviceList');
+  if (!selectedRoom) { section.style.display = 'none'; return; }
+  const room = rooms.find(r => r.id === selectedRoom);
+  if (!room) { section.style.display = 'none'; return; }
+  const devs = getRoomDevices(selectedRoom);
+  section.style.display = 'block';
+  label.textContent = room.name + ' — DEVICES';
+  list.innerHTML = '';
+  if (devs.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📡</div>NO DEVICES IN THIS ROOM</div>';
+    return;
+  }
+  devs.forEach(dev => {
+    const item = document.createElement('div');
+    item.className = 'device-item';
+    item.innerHTML = `
+      <div class="device-icon">${dev.icon}</div>
+      <div class="device-info" onclick="openModal('${dev.id}')">
+        <div class="device-name">${dev.name}</div>
+        <div class="device-detail">${dev.on ? dev.detail : 'Off'}</div>
+      </div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" ${dev.on ? 'checked' : ''} onchange="toggleDevice('${dev.id}', this.checked)">
+        <div class="toggle-track"></div>
+      </label>
+    `;
+    list.appendChild(item);
+  });
+}
+
+// ===== TOGGLE DEVICE =====
+window.toggleDevice = async function(id, val) {
+  const dev = devices.find(d => d.id === id);
+  if (!dev) return;
+  const updates = { on: val };
+  if (dev.type === 'lock') updates.detail = val ? 'Locked' : 'Unlocked';
+  if (dev.type === 'tv')   updates.detail = val ? 'Playing' : 'Standby';
+  await updateDevice(id, updates);
+};
+
+// ===== STATUS =====
+function updateStatus() {
+  const on          = totalOnDevices();
+  const activeRooms = rooms.filter(r => getOnDevices(r.id).length > 0).length;
+  document.getElementById('statusText').textContent  = on > 0 ? 'ALL SYSTEMS NORMAL' : 'STANDBY MODE';
+  document.getElementById('statusSub').textContent   = on + ' devices active · ' + activeRooms + ' rooms on';
+  document.getElementById('totalPower').textContent  = (on * 0.35).toFixed(1) + 'kW';
+}
+
+// ===== MODAL =====
+window.openModal = function(id) {
+  const dev  = devices.find(d => d.id === id);
+  if (!dev) return;
+  const room = rooms.find(r => r.id === dev.roomId);
+  document.getElementById('modalTitle').innerHTML = dev.icon + ' &nbsp;' + dev.name;
+  document.getElementById('modalRoom').textContent = room ? room.name : '';
+  document.getElementById('modalBody').innerHTML   = buildModalBody(dev);
+  document.getElementById('modalOverlay').classList.add('open');
+};
+
+function buildModalBody(dev) {
+  if (dev.type === 'fan') {
+    return `<div class="setting-group"><span class="setting-label">FAN SPEED</span><div class="speed-btns">${[1,2,3,4].map(s=>`<button class="speed-btn ${dev.speed==s?'active':''}" onclick="setFanSpeed('${dev.id}',${s},this)">${s}</button>`).join('')}</div></div>
+    <div class="setting-group"><span class="setting-label">POWER</span><div class="speed-btns"><button class="speed-btn ${!dev.on?'active':''}" onclick="toggleDevice('${dev.id}',false);closeModalDirect()">OFF</button><button class="speed-btn ${dev.on?'active':''}" onclick="toggleDevice('${dev.id}',true);closeModalDirect()">ON</button></div></div>`;
+  }
+  if (dev.type === 'ac') {
+    return `<div class="setting-group"><span class="setting-label">TEMPERATURE</span><div class="temp-display" id="acTempDisp">${dev.temp}°C</div><div class="temp-controls"><button class="temp-btn" onclick="changeACTemp('${dev.id}',-1)">−</button><button class="temp-btn" onclick="changeACTemp('${dev.id}',1)">+</button></div></div>
+    <div class="setting-group"><span class="setting-label">MODE</span><div class="mode-btns">${['Cool','Fan','Dry','Auto','Heat'].map(m=>`<button class="mode-btn ${dev.mode==m?'active':''}" onclick="setACMode('${dev.id}','${m}',this)">${m}</button>`).join('')}</div></div>`;
+  }
+  if (dev.type === 'lights') {
+    const colors = ['#FFD700','#FFFFFF','#FF6B6B','#00D4FF','#A8E6CF','#FF8C00','#E040FB'];
+    return `<div class="setting-group"><span class="setting-label">BRIGHTNESS</span><div class="slider-row"><span>${dev.brightness||100}%</span><input type="range" min="0" max="100" value="${dev.brightness||100}" oninput="setLightBrightness('${dev.id}',this.value);this.previousElementSibling.textContent=this.value+'%'"></div></div>
+    <div class="setting-group"><span class="setting-label">COLOR</span><div class="color-btns">${colors.map(c=>`<div class="color-btn ${dev.color==c?'active':''}" style="background:${c}" onclick="setLightColor('${dev.id}','${c}',this)"></div>`).join('')}</div></div>`;
+  }
+  if (dev.type === 'geyser') {
+    return `<div class="setting-group"><span class="setting-label">WATER TEMPERATURE</span><div class="temp-display" id="geyserTempDisp">${dev.temp||50}°C</div><div class="temp-controls"><button class="temp-btn" onclick="changeGeyserTemp('${dev.id}',-5)">−5</button><button class="temp-btn" onclick="changeGeyserTemp('${dev.id}',5)">+5</button></div></div>`;
+  }
+  if (dev.type === 'lock') {
+    return `<div class="setting-group"><span class="setting-label">DOOR STATUS</span><div class="speed-btns"><button class="speed-btn ${!dev.on?'active':''}" onclick="toggleDevice('${dev.id}',false);closeModalDirect()">🔓 UNLOCK</button><button class="speed-btn ${dev.on?'active':''}" onclick="toggleDevice('${dev.id}',true);closeModalDirect()">🔒 LOCK</button></div></div>`;
+  }
+  if (dev.type === 'tv') {
+    return `<div class="setting-group"><span class="setting-label">POWER</span><div class="speed-btns"><button class="speed-btn ${!dev.on?'active':''}" onclick="toggleDevice('${dev.id}',false);closeModalDirect()">STANDBY</button><button class="speed-btn ${dev.on?'active':''}" onclick="toggleDevice('${dev.id}',true);closeModalDirect()">ON</button></div></div>`;
+  }
+  return '<div class="empty-state">No settings available</div>';
+}
+
+window.setFanSpeed = async function(id, speed, btn) {
+  await updateDevice(id, { speed, detail: 'Speed ' + speed, on: true });
+  btn.closest('.speed-btns').querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+};
+window.changeACTemp = async function(id, delta) {
+  const dev  = devices.find(d => d.id === id);
+  const temp = Math.min(30, Math.max(16, (dev.temp||22) + delta));
+  await updateDevice(id, { temp, detail: temp + '°C · ' + (dev.mode||'Cool') });
+  const el = document.getElementById('acTempDisp');
+  if (el) el.textContent = temp + '°C';
+};
+window.setACMode = async function(id, mode, btn) {
+  const dev = devices.find(d => d.id === id);
+  await updateDevice(id, { mode, detail: (dev.temp||22) + '°C · ' + mode });
+  btn.closest('.mode-btns').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+};
+window.setLightBrightness = async function(id, val) {
+  await updateDevice(id, { brightness: parseInt(val), detail: val + '% brightness' });
+};
+window.setLightColor = async function(id, color, el) {
+  await updateDevice(id, { color });
+  el.closest('.color-btns').querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+};
+window.changeGeyserTemp = async function(id, delta) {
+  const dev  = devices.find(d => d.id === id);
+  const temp = Math.min(80, Math.max(30, (dev.temp||50) + delta));
+  await updateDevice(id, { temp, detail: temp + '°C' });
+  const el = document.getElementById('geyserTempDisp');
+  if (el) el.textContent = temp + '°C';
+};
+
+window.closeModal      = function(e) { if (e.target === document.getElementById('modalOverlay')) closeModalDirect(); };
+window.closeModalDirect = function() { document.getElementById('modalOverlay').classList.remove('open'); };
+
+// ===== MANAGE TAB =====
+function renderManage() {
+  const el = document.getElementById('manageContent');
+  el.innerHTML = '';
+
+  rooms.forEach(room => {
+    const devs = getRoomDevices(room.id);
+    const card = document.createElement('div');
+    card.className = 'manage-card';
+    card.innerHTML = `
+      <div class="manage-card-header">
+        <div class="manage-card-title">${room.icon} ${room.name} <span style="color:rgba(0,212,255,0.4);font-size:10px">(${devs.length})</span></div>
+        <button class="del-btn" onclick="deleteRoomHandler('${room.id}')">✕</button>
+      </div>
+      <div class="manage-card-body">
+        ${devs.map(dev => `
+          <div class="manage-row">
+            <div class="manage-row-icon">${dev.icon}</div>
+            <div class="manage-row-name">${dev.name}</div>
+            <div class="manage-row-detail">${dev.on ? '🟢 ON' : '⚫ OFF'}</div>
+            <button class="del-btn" onclick="deleteDeviceHandler('${dev.id}')">✕</button>
+          </div>
+        `).join('')}
+        <div id="addDeviceForm-${room.id}" class="mini-form">
+          <select class="mini-select" id="devType-${room.id}">${deviceTypes.map(t=>`<option value="${t.value}">${t.label}</option>`).join('')}</select>
+          <input class="mini-input" id="devName-${room.id}" placeholder="Device name (optional)">
+          <button class="mini-submit" onclick="addDeviceHandler('${room.id}')">+ ADD DEVICE</button>
+        </div>
+        <button class="add-btn" onclick="toggleAddDeviceForm('${room.id}')">+ ADD DEVICE</button>
+      </div>
+    `;
+    el.appendChild(card);
+  });
+
+  const addCard = document.createElement('div');
+  addCard.className = 'manage-card';
+  addCard.innerHTML = `
+    <div id="addRoomForm" class="mini-form" style="padding:14px">
+      <select class="mini-select" id="roomIcon">
+        <option value="🛋️">🛋️ Living Room</option>
+        <option value="🛏️">🛏️ Bedroom</option>
+        <option value="🍳">🍳 Kitchen</option>
+        <option value="🚿">🚿 Bathroom</option>
+        <option value="🎮">🎮 Game Room</option>
+        <option value="📚">📚 Study Room</option>
+        <option value="🧺">🧺 Laundry</option>
+        <option value="🚗">🚗 Garage</option>
+        <option value="🏠">🏠 Other</option>
+      </select>
+      <input class="mini-input" id="roomNameInput" placeholder="Room name">
+      <button class="mini-submit" onclick="addRoomHandler()">+ ADD ROOM</button>
+    </div>
+    <button class="add-btn" style="margin:10px;width:calc(100% - 20px)" onclick="toggleAddRoomForm()">+ ADD NEW ROOM</button>
+  `;
+  el.appendChild(addCard);
+}
+
+window.toggleAddDeviceForm = function(roomId) { document.getElementById('addDeviceForm-' + roomId)?.classList.toggle('open'); };
+window.toggleAddRoomForm   = function()       { document.getElementById('addRoomForm')?.classList.toggle('open'); };
+
+window.addDeviceHandler = async function(roomId) {
+  const typeEl   = document.getElementById('devType-' + roomId);
+  const nameEl   = document.getElementById('devName-' + roomId);
+  const type     = typeEl.value;
+  const typeInfo = deviceTypes.find(t => t.value === type);
+  const icon     = typeInfo.label.split(' ')[0];
+  const name     = nameEl.value.trim().toUpperCase() || typeInfo.label.replace(icon,'').trim().toUpperCase();
+  const id       = genId();
+  const dev      = { id, roomId, name, icon, type, on: false, detail: 'Off' };
+  if (type === 'fan')    { dev.speed = 1;   dev.detail = 'Speed 1'; }
+  if (type === 'ac')     { dev.temp = 24;   dev.mode = 'Cool'; dev.detail = '24°C · Cool'; }
+  if (type === 'lights') { dev.brightness = 100; dev.color = '#FFD700'; dev.detail = '100% brightness'; }
+  if (type === 'geyser') { dev.temp = 50;   dev.detail = '50°C'; }
+  await saveDevice(dev);
+  nameEl.value = '';
+};
+
+window.addRoomHandler = async function() {
+  const icon = document.getElementById('roomIcon').value;
+  const name = document.getElementById('roomNameInput').value.trim().toUpperCase();
+  if (!name) { alert('Room name likho!'); return; }
+  await saveRoom({ id: genId(), name, icon });
+  document.getElementById('roomNameInput').value = '';
+};
+
+window.deleteRoomHandler = async function(id) {
+  if (!confirm('Is room aur iske sare devices delete karo?')) return;
+  if (selectedRoom === id) { selectedRoom = null; document.getElementById('roomDevicesSection').style.display = 'none'; }
+  await deleteRoom(id);
+};
+
+window.deleteDeviceHandler = async function(id) { await deleteDevice(id); };
+
+// ===== TAB SWITCH =====
+window.switchTab = function(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  const idx = ['home','devices','energy'].indexOf(tab);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  if (tab === 'devices') renderManage();
+};
+
+window.setNav = function(el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+};
+
+// ===== CLOCK =====
+setInterval(() => { document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8); }, 1000);
+
+</script>
+</body>
+</html>
